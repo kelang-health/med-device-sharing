@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.6.3 LINE Settings UI)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.6.4 LINE POST Cache Hotfix)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -1778,7 +1778,20 @@ async function copyLineWebhookUrl(){
     catch(e){el.select();document.execCommand('copy');Swal.fire('คัดลอก Webhook URL แล้ว','','success');}
 }
 
-async function testLineNotification(){const r=await run('testLineNotification',{});Swal.fire(r.success?'ส่งทดสอบสำเร็จ':'ส่งไม่สำเร็จ',r.error||'ตรวจสอบ LINE OA ได้แล้ว',r.success?'success':'error');}
+async function testLineNotification(){
+    const r=await run('testLineNotification',{});
+    const err=String((r&&r.error)||'');
+    if(!r.success && err.includes('GET ใช้ได้เฉพาะ action=health')){
+        await Swal.fire({
+            title:'พบไฟล์หน้าเว็บรุ่นเก่าใน Cache',
+            html:'<div class="text-left text-xs leading-6">ระบบ Backend รับ API ผ่าน POST ถูกต้อง แต่เบราว์เซอร์ยังใช้ไฟล์หน้าเว็บเก่าอยู่<br><br>กรุณากด <b>Ctrl + F5</b> หรือปิดหน้าเว็บแล้วเปิดใหม่ จากนั้นทดสอบส่งอีกครั้ง</div>',
+            icon:'warning',
+            confirmButtonText:'รับทราบ'
+        });
+        return;
+    }
+    Swal.fire(r.success?'ส่งทดสอบสำเร็จ':'ส่งไม่สำเร็จ',err||'ตรวจสอบ LINE OA ได้แล้ว',r.success?'success':'error');
+}
 async function setupLineDailyTrigger(){
     const r=await run('setupLineDailyTrigger',{});
     if(r.success){
