@@ -30,7 +30,7 @@ p=Path('script.js')
 s=p.read_text(encoding='utf-8')
 s=re.sub(r'Frontend Controller API \(v[^)]*\)', f'Frontend Controller API (v{VERSION} Guided LINE Setup)', s, count=1)
 
-pat=r"async function saveLineConfigForm\(\)\{.*?\n\}\nasync function testLineNotification"
+pat=r"async function saveLineConfigForm\(\)\{.*?\n\}\n\nasync function copyLineWebhookUrl"
 new="""async function saveLineConfigForm(){
     const token=(document.getElementById('line-token').value||'').trim();
     const targetId=(document.getElementById('line-target').value||'').trim();
@@ -101,7 +101,8 @@ new="""async function saveLineConfigForm(){
         }
     }
 }
-async function testLineNotification"""
+
+async function copyLineWebhookUrl"""
 s2,n=re.subn(pat,new,s,flags=re.S)
 if n!=1:
     raise SystemExit(f'saveLineConfigForm replacement count={n}')
