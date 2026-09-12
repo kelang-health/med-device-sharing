@@ -213,7 +213,7 @@ async function checkAuthSession() {
         state.isAdmin = true;
         state.adminId = res.adminId || getSessionValue('adminId');
         state.adminName = res.adminName || getSessionValue('adminName') || state.adminId;
-        state.role = res.role || 'STAFF';
+        state.role = res.role || getSessionValue('role') || 'ADMIN';
         setSessionValue('role', state.role);
         setSessionValue('adminId', state.adminId);
         setSessionValue('adminName', state.adminName);
@@ -1436,7 +1436,7 @@ async function submitLogin(event) {
         setSessionValue('token', res.token);
         setSessionValue('adminId', res.adminId);
         setSessionValue('adminName', res.adminName);
-        setSessionValue('role', res.role || 'STAFF');
+        setSessionValue('role', res.role || 'ADMIN');
         Swal.fire('สิทธิ์ล็อกอินผ่านสำเร็จ', 'ยินดีต้อนรับเข้าใช้งานหน้าต่างควบคุม', 'success').then(() => { window.location.reload(); });
     } else {
         Swal.fire('เข้าสู่ระบบล้มเหลว', res.error || 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง', 'error');

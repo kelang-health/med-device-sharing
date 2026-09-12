@@ -93,7 +93,7 @@
                     <i class="fa-solid fa-shield-halved text-sm text-emerald-500"></i> มาตรฐานความปลอดภัยข้อมูล PDPA
                 </div>
                 <button id="btn-login-trigger" onclick="openLoginModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-lock text-xs"></i> เข้าสู่ระบบ Admin
+                    <i class="fa-solid fa-lock text-xs"></i> เข้าสู่ระบบเจ้าหน้าที่
                 </button>
                 <div id="logged-admin-info" class="hidden flex items-center gap-2">
                     <span id="display-admin-name" class="text-xs font-semibold text-gray-700 bg-gray-100 px-3 py-2 rounded-xl border border-gray-200/50">ผู้ใช้งาน: Admin</span>
@@ -416,7 +416,7 @@
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                             <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2"><i class="fa-solid fa-database text-indigo-500"></i> โครงสร้างข้อมูลระบบ v3.6</h4>
-                            <p class="text-[11px] text-gray-400 mt-1">เพิ่มเฉพาะคอลัมน์/ชีตที่ขาดสำหรับระบบยืมต่อ โดยไม่ลบ ไม่ clear และไม่เขียนทับข้อมูลเดิม</p>
+                            <p class="text-[11px] text-gray-400 mt-1">เพิ่มเฉพาะคอลัมน์/ชีตที่ขาดสำหรับ Role, Audit, VOID และ LINE โดยไม่ลบ ไม่ clear และไม่เขียนทับข้อมูลเดิม</p>
                             <div id="schema-status" class="text-[11px] text-gray-500 mt-2">กดตรวจสอบหรือเปิดหน้านี้เพื่อดูสถานะโครงสร้าง</div>
                         </div>
                         <button onclick="upgradeSchemaV35()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 flex-shrink-0">
@@ -679,7 +679,7 @@
             <div class="flex justify-between items-center mb-4">
                 <div class="flex items-center gap-2">
                     <div class="p-2 bg-indigo-50 rounded-xl text-indigo-600"><i class="fa-solid fa-lock-open"></i></div>
-                    <h4 class="font-bold text-gray-800 text-sm">เข้าสู่ระบบสิทธิ์แอดมิน (Admin Login)</h4>
+                    <h4 class="font-bold text-gray-800 text-sm">เข้าสู่ระบบเจ้าหน้าที่</h4>
                 </div>
                 <button onclick="closeLoginModal()" class="text-gray-400 hover:bg-gray-50 p-2 rounded-xl"><i class="fa-solid fa-xmark text-sm"></i></button>
             </div>
@@ -746,7 +746,7 @@
             <div class="flex justify-between items-center mb-4">
                 <div class="flex items-center gap-2">
                     <div class="p-2 bg-indigo-50 rounded-xl text-indigo-600"><i class="fa-solid fa-user-plus"></i></div>
-                    <h4 class="font-bold text-gray-800 text-sm">เพิ่มผู้ใช้งานสิทธิ์ Admin ใหม่</h4>
+                    <h4 class="font-bold text-gray-800 text-sm">เพิ่มผู้ใช้งานระบบ</h4>
                 </div>
                 <button onclick="closeAddAdminUserModal()" class="text-gray-400 hover:bg-gray-50 p-2 rounded-xl"><i class="fa-solid fa-xmark text-sm"></i></button>
             </div>
@@ -762,6 +762,13 @@
                 <div>
                     <label class="block font-bold text-gray-500 mb-1">รหัสผ่าน (Password)</label>
                     <input type="password" id="new-admin-password" placeholder="อย่างน้อย 8 ตัวอักษร" minlength="8" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-500 mb-1">สิทธิ์ใช้งาน</label>
+                    <select id="new-admin-role" class="w-full border border-gray-200 px-3 py-2 rounded-xl bg-white focus:outline-none">
+                        <option value="STAFF">STAFF — ยืม/คืน/ติดตาม</option>
+                        <option value="ADMIN">ADMIN — จัดการระบบทั้งหมด</option>
+                    </select>
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
                     <button type="button" onclick="closeAddAdminUserModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2.5 rounded-xl font-medium transition">ยกเลิก</button>
