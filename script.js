@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.5 Renewal & Tracking)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.6 Audit & Security)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -11,7 +11,8 @@ const STORAGE_KEYS = {
     token: 'medDevice.adminToken',
     adminId: 'medDevice.adminId',
     adminName: 'medDevice.adminName',
-    theme: 'medDevice.themeMode'
+    theme: 'medDevice.themeMode',
+    role: 'medDevice.role'
 };
 
 function getSessionToken() {
@@ -48,6 +49,18 @@ function clearAuthSession() {
     state.isAdmin = false;
     state.adminId = '';
     state.adminName = '';
+    state.role = '';
+    localStorage.removeItem(STORAGE_KEYS.role);
+}
+
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function safeCsvCell(value) {
+    let cell = value === null || value === undefined ? '' : String(value);
+    if (/^[=+@-]/.test(cell)) cell = "'" + cell;
+    return `"${cell.replace(/"/g, '""')}"`;
 }
 
 const DEFAULT_LOGO = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" rx="30" fill="%23e0e7ff"/><circle cx="60" cy="60" r="40" fill="%234f46e5"/><path d="M60 42v36M42 60h36" stroke="white" stroke-width="10" stroke-linecap="round"/></svg>';
@@ -56,6 +69,7 @@ let state = {
     isAdmin: false,
     adminId: '',
     adminName: '',
+    role: '',
     data: [],       
     publics: [],    
     equipments: [],
@@ -168,24 +182,14 @@ async function runEquipmentStatusSync() {
 }
 
 function applyAdminSessionUi() {
-    const sidebar = document.getElementById('sidebar');
-    const wrapper = document.getElementById('main-wrapper');
-    if (sidebar) sidebar.classList.remove('hidden');
-    if (wrapper) wrapper.classList.add('md:pl-64');
-
-    const brand = document.getElementById('public-header-brand');
-    const loginBtn = document.getElementById('btn-login-trigger');
-    const info = document.getElementById('logged-admin-info');
-    const displayName = document.getElementById('display-admin-name');
-    const pdpaBadge = document.getElementById('pdpa-badge');
-    const borrowLog = document.getElementById('borrow-log-section');
-    if (brand) brand.classList.add('md:hidden');
-    if (loginBtn) loginBtn.classList.add('hidden');
-    if (info) info.classList.remove('hidden');
-    if (displayName) displayName.innerText = 'เจ้าหน้าที่: ' + (state.adminName || '-');
-    if (pdpaBadge) pdpaBadge.classList.remove('hidden');
-    if (borrowLog) borrowLog.classList.remove('hidden');
-    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+    const sidebar=document.getElementById('sidebar'),wrapper=document.getElementById('main-wrapper');
+    if(sidebar)sidebar.classList.remove('hidden'); if(wrapper)wrapper.classList.add('md:pl-64');
+    const brand=document.getElementById('public-header-brand'),loginBtn=document.getElementById('btn-login-trigger'),info=document.getElementById('logged-admin-info'),displayName=document.getElementById('display-admin-name'),pdpaBadge=document.getElementById('pdpa-badge'),borrowLog=document.getElementById('borrow-log-section');
+    if(brand)brand.classList.add('md:hidden'); if(loginBtn)loginBtn.classList.add('hidden'); if(info)info.classList.remove('hidden');
+    if(displayName)displayName.innerText=`${state.role==='ADMIN'?'ADMIN':'STAFF'}: ${state.adminName||'-'}`;
+    if(pdpaBadge)pdpaBadge.classList.remove('hidden'); if(borrowLog)borrowLog.classList.remove('hidden');
+    document.querySelectorAll('.admin-only').forEach(el=>el.classList.remove('hidden'));
+    document.querySelectorAll('.admin-role-only').forEach(el=>el.classList.toggle('hidden',state.role!=='ADMIN'));
 }
 
 async function checkAuthSession() {
@@ -209,6 +213,8 @@ async function checkAuthSession() {
         state.isAdmin = true;
         state.adminId = res.adminId || getSessionValue('adminId');
         state.adminName = res.adminName || getSessionValue('adminName') || state.adminId;
+        state.role = res.role || 'STAFF';
+        setSessionValue('role', state.role);
         setSessionValue('adminId', state.adminId);
         setSessionValue('adminName', state.adminName);
         applyAdminSessionUi();
@@ -1013,7 +1019,7 @@ async function openExtendBorrowPrompt(entryId) {
     } else if (res.schemaUpgradeRequired) {
         Swal.fire({
             title: 'ต้องอัปเกรดโครงสร้างก่อน',
-            text: res.error || 'กรุณาไปที่เมนูตั้งค่าแล้วกดอัปเกรดโครงสร้าง v3.5',
+            text: res.error || 'กรุณาไปที่เมนูตั้งค่าแล้วกดอัปเกรดโครงสร้าง v3.6',
             icon: 'warning',
             confirmButtonText: 'ไปหน้าตั้งค่า'
         }).then(r => { if (r.isConfirmed) switchTab('settings'); });
@@ -1152,6 +1158,7 @@ function syncSerialNumber() {
 }
 
 function switchTab(tabId) {
+    if (state.isAdmin && tabId === 'settings' && state.role !== 'ADMIN') { Swal.fire('สงวนสิทธิ์ ADMIN','เมนูตั้งค่าระบบใช้ได้เฉพาะ ADMIN','warning'); return; }
     if (!state.isAdmin && tabId !== 'dashboard') {
         Swal.fire('สิทธิ์ไม่เพียงพอ', 'กรุณาเข้าสู่ระบบด้วยบัญชีแอดมินเจ้าหน้าที่ก่อน', 'warning');
         return;
@@ -1177,6 +1184,8 @@ function switchTab(tabId) {
     if (tabId === 'settings') {
         loadAdminUsersSection();
         checkSchemaStatus();
+        loadAuditLogSection();
+        loadLineConfigStatus();
     }
 }
 
@@ -1277,8 +1286,7 @@ function exportToCSV(sheetName) {
     let csvStr = "\uFEFF" + columns.join(",") + "\n";
     dataset.forEach(row => {
         let line = columns.map(c => {
-            let cell = row[c] === null || row[c] === undefined ? '' : String(row[c]);
-            return `"${cell.replace(/"/g, '""')}"`;
+            return safeCsvCell(row[c]);
         });
         csvStr += line.join(",") + "\n";
     });
@@ -1353,20 +1361,13 @@ function processReturnItem(id) {
     });
 }
 
-function deleteBorrowRecord(id) {
-    Swal.fire({
-        title: 'มั่นใจขอลบรายการประวัตินี้?',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#e11d48',
-        confirmButtonText: 'ยืนยันคำสั่งลบ'
-    }).then(async (r) => {
-        if (r.isConfirmed) {
-            const res = await run('deleteBorrow', { id: id });
-            if (res.success) { Swal.fire('ถอนรากข้อมูลแล้ว', '', 'success'); await loadSystemData(); }
-            else { Swal.fire('ไม่สำเร็จ', res.error || 'เกิดข้อผิดพลาดในการลบรายการ', 'error'); }
-        }
-    });
+async function deleteBorrowRecord(entryId) {
+    if (state.role !== 'ADMIN') { Swal.fire('สงวนสิทธิ์ ADMIN','การ VOID รายการใช้ได้เฉพาะ ADMIN','warning'); return; }
+    const result=await Swal.fire({title:'VOID รายการยืม?',text:'ข้อมูลจะไม่ถูกลบ และยังตรวจสอบย้อนหลังได้',icon:'warning',input:'textarea',inputLabel:'เหตุผลการ VOID',inputPlaceholder:'ระบุเหตุผล...',showCancelButton:true,confirmButtonText:'ยืนยัน VOID',cancelButtonText:'ยกเลิก',confirmButtonColor:'#e11d48',inputValidator:v=>String(v||'').trim().length<3?'กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร':undefined});
+    if(!result.isConfirmed)return;
+    const res=await run('deleteBorrow',{id:entryId,reason:String(result.value||'').trim()});
+    if(res.success){Swal.fire('VOID สำเร็จ','เก็บข้อมูลเดิมไว้ในระบบแล้ว','success');await loadSystemData();}
+    else Swal.fire('ไม่สำเร็จ',res.error||'เกิดข้อผิดพลาด','error');
 }
 
 async function submitEquipmentForm(event) {
@@ -1382,14 +1383,12 @@ async function submitEquipmentForm(event) {
     else { Swal.fire('ไม่สำเร็จ', res.error || 'เกิดข้อผิดพลาดในการบันทึกครุภัณฑ์', 'error'); }
 }
 
-async function deleteEquipmentRecord(id) {
-    Swal.fire({ title: 'ยืนยันลบพัสดุออกจากคลัง?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48' }).then(async (r) => {
-        if (r.isConfirmed) {
-            const res = await run('deleteEquipment', { id: id });
-            if (res.success) { Swal.fire('ลบรายการสำเร็จ', '', 'success'); await loadSystemData(); }
-            else { Swal.fire('ไม่สำเร็จ', res.error || 'เกิดข้อผิดพลาดในการลบครุภัณฑ์', 'error'); }
-        }
-    });
+async function deleteEquipmentRecord(eqId) {
+    if (state.role !== 'ADMIN') { Swal.fire('สงวนสิทธิ์ ADMIN','การปิดใช้งานอุปกรณ์ใช้ได้เฉพาะ ADMIN','warning'); return; }
+    const result=await Swal.fire({title:'ปิดใช้งานอุปกรณ์?',text:'ระบบจะไม่ลบประวัติเดิม',icon:'warning',input:'textarea',inputLabel:'เหตุผลการปิดใช้งาน',showCancelButton:true,confirmButtonText:'ยืนยันปิดใช้งาน',cancelButtonText:'ยกเลิก',inputValidator:v=>String(v||'').trim().length<3?'กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร':undefined});
+    if(!result.isConfirmed)return;
+    const res=await run('deleteEquipment',{id:eqId,reason:String(result.value||'').trim()});
+    if(res.success){Swal.fire('ปิดใช้งานแล้ว','','success');await loadSystemData();}else Swal.fire('ไม่สำเร็จ',res.error||'เกิดข้อผิดพลาด','error');
 }
 
 async function saveSettingsForm(event) {
@@ -1437,6 +1436,7 @@ async function submitLogin(event) {
         setSessionValue('token', res.token);
         setSessionValue('adminId', res.adminId);
         setSessionValue('adminName', res.adminName);
+        setSessionValue('role', res.role || 'STAFF');
         Swal.fire('สิทธิ์ล็อกอินผ่านสำเร็จ', 'ยินดีต้อนรับเข้าใช้งานหน้าต่างควบคุม', 'success').then(() => { window.location.reload(); });
     } else {
         Swal.fire('เข้าสู่ระบบล้มเหลว', res.error || 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง', 'error');
@@ -1668,7 +1668,7 @@ async function checkSchemaStatus() {
         const res = await run('getSchemaStatus', {});
         if (res.success && res.ready) {
             box.className = 'text-[11px] text-emerald-700 mt-2';
-            box.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> โครงสร้างข้อมูลพร้อมใช้งาน v3.5';
+            box.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> โครงสร้างข้อมูลพร้อมใช้งาน v3.6';
         } else if (res.success) {
             const missing = [...(res.missingColumns || []), ...(res.missingSheets || [])].join(', ');
             box.className = 'text-[11px] text-amber-700 mt-2';
@@ -1685,8 +1685,8 @@ async function checkSchemaStatus() {
 
 async function upgradeSchemaV35() {
     const confirm = await Swal.fire({
-        title: 'อัปเกรดโครงสร้างเป็น v3.5?',
-        html: '<div class="text-xs text-left">ระบบจะ <b>เพิ่มเฉพาะ</b> คอลัมน์ DueDate, ExtensionCount, LastExtensionDate และสร้างชีต BorrowExtensionLog เฉพาะเมื่อยังไม่มี<br><br><b>จะไม่ลบ ไม่ clear และไม่เขียนทับข้อมูลเดิม</b></div>',
+        title: 'อัปเกรดโครงสร้างเป็น v3.6?',
+        html: '<div class="text-xs text-left">ระบบจะ <b>เพิ่มเฉพาะ</b> คอลัมน์ คอลัมน์สำหรับ Role/Audit/VOID/Inactive และสร้างชีต AuditLog/BorrowExtensionLog เฉพาะเมื่อยังไม่มี<br><br><b>จะไม่ลบ ไม่ clear และไม่เขียนทับข้อมูลเดิม</b></div>',
         icon: 'info',
         showCancelButton: true,
         confirmButtonText: 'ยืนยันอัปเกรด',
@@ -1711,6 +1711,13 @@ async function upgradeSchemaV35() {
 }
 
 // 👥 โหลดรายชื่อผู้ใช้งานสิทธิ์ Admin ทั้งหมดมาแสดงในหน้าตั้งค่า
+
+async function loadAuditLogSection(){const box=document.getElementById('audit-log-list');if(!box)return;box.innerHTML='กำลังโหลด...';const res=await run('getAuditLog',{limit:50});if(!res.success){box.textContent=res.error||'โหลดไม่สำเร็จ';return;}box.innerHTML=(res.data||[]).map(x=>`<div class="border-b py-2"><b>${escapeHtml(x.Action)}</b> • ${escapeHtml(x.AdminName||x.AdminID)} • ${escapeHtml(x.Module)}<br><span class="text-gray-400">${escapeHtml(x.Timestamp)} ${escapeHtml(x.RecordID||'')}</span></div>`).join('')||'ยังไม่มี Audit Log';}
+async function loadLineConfigStatus(){const el=document.getElementById('line-config-status');if(!el)return;const r=await run('getLineConfigStatus',{});el.textContent=r.success?`Token: ${r.tokenConfigured?'พร้อม':'ยังไม่มี'} | Target: ${r.targetConfigured?'พร้อม '+(r.targetMasked||''):'ยังไม่มี'} | แจ้งเตือน: ${r.enabled?'เปิด':'ปิด'} | Daily: ${r.dailyTrigger?'ตั้งแล้ว':'ยังไม่ตั้ง'}`:(r.error||'ตรวจสอบไม่ได้');}
+async function saveLineConfigForm(){const token=(document.getElementById('line-token').value||'').trim(),targetId=(document.getElementById('line-target').value||'').trim(),enabled=document.getElementById('line-enabled').checked;const r=await run('saveLineConfig',{channelAccessToken:token,targetId,enabled});if(r.success){document.getElementById('line-token').value='';Swal.fire('บันทึก LINE OA แล้ว','','success');loadLineConfigStatus();}else Swal.fire('ไม่สำเร็จ',r.error||'','error');}
+async function testLineNotification(){const r=await run('testLineNotification',{});Swal.fire(r.success?'ส่งทดสอบสำเร็จ':'ส่งไม่สำเร็จ',r.error||'ตรวจสอบ LINE OA ได้แล้ว',r.success?'success':'error');}
+async function setupLineDailyTrigger(){const r=await run('setupLineDailyTrigger',{});Swal.fire(r.success?'ตั้งเวลาแล้ว':'ไม่สำเร็จ',r.message||r.error||'',r.success?'success':'error');loadLineConfigStatus();}
+
 async function loadAdminUsersSection() {
     const list = document.getElementById('admin-users-list');
     if (!list) return;
@@ -1726,30 +1733,16 @@ async function loadAdminUsersSection() {
 }
 
 function renderAdminUsersTable(users) {
-    const list = document.getElementById('admin-users-list');
-    if (!list) return;
-    if (users.length === 0) {
-        list.innerHTML = `<div class="empty-state py-6"><i class="fa-solid fa-user-slash text-lg"></i><span>ยังไม่มีบัญชีผู้ใช้งานในระบบ</span></div>`;
-        return;
-    }
-    const myAdminId = getSessionValue('adminId') || '';
-    list.innerHTML = users.map(u => {
-        const isMe = String(u.adminId).trim().toLowerCase() === String(myAdminId).trim().toLowerCase();
-        return `
-        <div class="flex items-center justify-between bg-gray-50/70 border border-gray-100 rounded-xl px-3 py-2.5">
-            <div class="flex items-center gap-2.5 overflow-hidden">
-                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-user text-xs"></i></div>
-                <div class="overflow-hidden">
-                    <p class="font-bold text-gray-700 truncate">${u.adminName} ${isMe ? '<span class="text-[10px] font-semibold text-indigo-500">(บัญชีของคุณ)</span>' : ''}</p>
-                    <p class="text-[11px] text-gray-400 truncate">Username: ${u.adminId}</p>
-                </div>
-            </div>
-            <button onclick="deleteAdminUserPrompt('${u.adminId}')" ${isMe ? 'disabled title="ไม่สามารถลบบัญชีที่กำลังใช้งานอยู่ได้"' : 'title="ลบผู้ใช้งานนี้"'} class="p-2 rounded-lg transition flex-shrink-0 ${isMe ? 'text-gray-300 cursor-not-allowed' : 'bg-rose-50 hover:bg-rose-100 text-rose-600'}">
-                <i class="fa-solid fa-trash-can text-xs"></i>
-            </button>
-        </div>`;
+    const list=document.getElementById('admin-users-list'); if(!list)return;
+    if(!users.length){list.innerHTML='<div class="empty-state py-6">ยังไม่มีบัญชีผู้ใช้งาน</div>';return;}
+    const me=getSessionValue('adminId')||'';
+    list.innerHTML=users.map(u=>{
+      const isMe=String(u.adminId).toLowerCase()===String(me).toLowerCase();
+      const status=u.active!==false?'เปิดใช้งาน':'ปิดใช้งาน';
+      return `<div class="flex items-center justify-between bg-gray-50 border rounded-xl px-3 py-2.5"><div><p class="font-bold">${escapeHtml(u.adminName)} <span class="text-[10px] text-indigo-600">${escapeHtml(u.role||'STAFF')}</span></p><p class="text-[11px] text-gray-400">${escapeHtml(u.adminId)} • ${status}</p></div><button ${isMe?'disabled':''} onclick="setAdminUserActivePrompt('${escapeHtml(u.adminId)}',${u.active===false?'true':'false'})" class="px-3 py-1.5 rounded-lg text-xs font-bold ${u.active===false?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}">${u.active===false?'เปิดใช้':'ปิดใช้'}</button></div>`;
     }).join('');
 }
+function setAdminUserActivePrompt(adminId,active){Swal.fire({title:active?'เปิดใช้งานบัญชี?':'ปิดใช้งานบัญชี?',icon:'question',showCancelButton:true,confirmButtonText:'ยืนยัน'}).then(async r=>{if(!r.isConfirmed)return;const res=await run('setAdminUserActive',{adminId,active});if(res.success){Swal.fire('สำเร็จ','','success');loadAdminUsersSection();}else Swal.fire('ไม่สำเร็จ',res.error||'','error');});}
 
 function openAddAdminUserModal() {
     document.getElementById('form-admin-user').reset();
@@ -1762,10 +1755,11 @@ async function submitAddAdminUserForm(event) {
     const adminId = document.getElementById('new-admin-id').value.trim();
     const adminName = document.getElementById('new-admin-name').value.trim();
     const password = document.getElementById('new-admin-password').value.trim();
+    const role = document.getElementById('new-admin-role') ? document.getElementById('new-admin-role').value : 'STAFF';
 
     Swal.fire({ title: 'กำลังเพิ่มผู้ใช้งาน...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     try {
-        const res = await run('addAdminUser', { adminId, adminName, password });
+        const res = await run('addAdminUser', { adminId, adminName, password, role });
         if (res.success) {
             Swal.fire('เพิ่มผู้ใช้งานสำเร็จ', `เพิ่มบัญชี "${adminId}" เข้าสู่ระบบเรียบร้อยแล้ว`, 'success');
             closeAddAdminUserModal();
