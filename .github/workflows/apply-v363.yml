@@ -1,0 +1,38 @@
+name: Apply v3.6.3 LINE UI
+
+on:
+  push:
+    branches:
+      - work/v3.6.3-line-ui
+    paths:
+      - .github/workflows/apply-v363.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/v3.6.3-line-ui
+          fetch-depth: 0
+      - name: Apply frontend patch
+        run: python3 tools/apply_v363.py
+      - name: Validate
+        run: |
+          node --check script.js
+          git diff --check
+          grep -q "v3.6.3" script.js
+          grep -q "บันทึกการตั้งค่า LINE OA" index.html
+          grep -q "รีเฟรชสถานะ" index.html
+          grep -q "triggerAuthorizationRequired" script.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html script.js
+          git diff --cached --quiet && exit 0
+          git commit -m "v3.6.3: improve LINE settings UI and trigger status"
+          git push origin HEAD:work/v3.6.3-line-ui
