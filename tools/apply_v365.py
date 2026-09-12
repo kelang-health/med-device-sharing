@@ -14,25 +14,21 @@ p=Path('script.js')
 s=p.read_text(encoding='utf-8')
 s=re.sub(r'Frontend Controller API \(v[^)]*\)', f'Frontend Controller API (v{VERSION} LINE Enabled State Sync)', s, count=1)
 
-# Sync checkbox with persisted backend state whenever status is loaded.
-marker="async function loadLineConfigStatus(){"
-idx=s.find(marker)
-if idx < 0:
-    raise SystemExit('loadLineConfigStatus not found')
-# Find the success/status rendering block and inject once after successful response is available.
-needle="if(!r.success){el.innerHTML=`<span class=\"text-rose-600\">${escapeHtml(r.error||'ตรวจสอบ LINE ไม่สำเร็จ')}</span>`;return;}"
+# Sync checkbox with persisted backend state whenever LINE status is loaded.
+needle="const r=await run('getLineConfigStatus',{});"
 if needle not in s:
-    raise SystemExit('loadLineConfigStatus success guard not found')
-replacement=needle+"\n    const enabledBox=document.getElementById('line-enabled');\n    if(enabledBox) enabledBox.checked=!!r.enabled;"
-s=s.replace(needle,replacement,1)
+    raise SystemExit('getLineConfigStatus call not found')
+inject=needle+"\n    const enabledBox=document.getElementById('line-enabled');\n    if(enabledBox && r && r.success) enabledBox.checked=!!r.enabled;"
+s=s.replace(needle,inject,1)
 
-# Refresh persisted state after a successful save so checkbox and badges stay consistent.
-needle2="await Swal.fire('บันทึกการตั้งค่าแล้ว','Token และ Channel Secret ถูกเก็บใน Apps Script Script Properties เรียบร้อย','success');"
+# Keep checkbox aligned with the value actually persisted after save.
+needle2="const r=await run('saveLineConfig',{channelAccessToken:token,targetId,channelSecret,enabled});"
 if needle2 not in s:
-    raise SystemExit('save success marker not found')
-s=s.replace(needle2, needle2+"\n            await loadLineConfigStatus();",1)
+    raise SystemExit('saveLineConfig call not found')
+inject2=needle2+"\n        const enabledBox=document.getElementById('line-enabled');\n        if(enabledBox && r && r.success) enabledBox.checked=!!r.enabled;"
+s=s.replace(needle2,inject2,1)
 
-# Improve test behavior: when notification is disabled, offer to enable + persist without requiring secrets again.
+# Improve test behavior: if notifications are disabled, offer a one-click enable and retry.
 pat=r"async function testLineNotification\(\)\{.*?\n\}\nasync function setupLineDailyTrigger"
 new="""async function testLineNotification(){
     let r=await run('testLineNotification',{});
@@ -64,7 +60,6 @@ new="""async function testLineNotification(){
                 Swal.fire('เปิดการแจ้งเตือนไม่สำเร็จ',save.error||'ไม่สามารถบันทึกสถานะ LINE OA ได้','error');
                 return;
             }
-            await loadLineConfigStatus();
             r=await run('testLineNotification',{});
         }else{
             return;
