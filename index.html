@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=3.6" />
+    <link rel="stylesheet" href="style.css?v=3.6.2" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -427,7 +427,7 @@
 
                 <div class="admin-role-only bg-white border border-slate-100 rounded-2xl shadow-sm p-5 max-w-2xl"><div class="flex justify-between items-center"><div><h4 class="font-bold text-sm">Audit Log</h4><p class="text-[11px] text-gray-400">ประวัติการแก้ไข/VOID/คืน/ยืมต่อ/ตั้งค่าระบบ</p></div><button onclick="loadAuditLogSection()" class="bg-slate-100 px-3 py-2 rounded-xl text-xs font-bold">รีเฟรช</button></div><div id="audit-log-list" class="mt-3 max-h-64 overflow-auto text-[11px]">กำลังโหลด...</div></div>
 
-                <div class="admin-role-only bg-white border border-emerald-100 rounded-2xl shadow-sm p-5 max-w-2xl"><h4 class="font-bold text-sm">LINE OA แจ้งเตือน</h4><p class="text-[11px] text-gray-400 mt-1">Token เก็บใน Apps Script Script Properties ไม่บันทึกใน GitHub</p><div id="line-config-status" class="text-[11px] mt-2 text-gray-600">กำลังตรวจสอบ...</div><div class="grid grid-cols-1 gap-2 mt-3"><input id="line-token" type="password" placeholder="Channel access token (เว้นว่างถ้าไม่เปลี่ยน)" class="border px-3 py-2 rounded-xl text-xs"><input id="line-target" type="text" placeholder="Target User ID / Group ID" class="border px-3 py-2 rounded-xl text-xs"><label class="text-xs"><input id="line-enabled" type="checkbox"> เปิดการแจ้งเตือน</label></div><div class="flex flex-wrap gap-2 mt-3"><button onclick="saveLineConfigForm()" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-bold">บันทึก</button><button onclick="testLineNotification()" class="bg-blue-50 text-blue-700 px-3 py-2 rounded-xl text-xs font-bold">ทดสอบส่ง</button><button onclick="setupLineDailyTrigger()" class="bg-amber-50 text-amber-700 px-3 py-2 rounded-xl text-xs font-bold">ตั้งสรุปทุกวัน 08:00</button></div></div>
+                <div class="admin-role-only bg-white border border-emerald-100 rounded-2xl shadow-sm p-5 max-w-2xl"><h4 class="font-bold text-sm">LINE OA แจ้งเตือน</h4><p class="text-[11px] text-gray-400 mt-1">Token เก็บใน Apps Script Script Properties ไม่บันทึกใน GitHub</p><div id="line-config-status" class="text-[11px] mt-2 text-gray-600">กำลังตรวจสอบ...</div><div class="grid grid-cols-1 gap-2 mt-3"><input id="line-token" type="password" placeholder="Channel access token (เว้นว่างถ้าไม่เปลี่ยน)" class="border px-3 py-2 rounded-xl text-xs"><input id="line-channel-secret" type="password" placeholder="Channel secret (Basic settings)" class="border px-3 py-2 rounded-xl text-xs"><input id="line-target" type="text" placeholder="Target User ID / Group ID" class="border px-3 py-2 rounded-xl text-xs"><div class="flex gap-2"><input id="line-webhook-url" type="text" readonly value="https://tgeezbwbrovfyjbeykrj.supabase.co/functions/v1/line-webhook-gateway" class="border bg-gray-50 px-3 py-2 rounded-xl text-[10px] flex-1"><button type="button" onclick="copyLineWebhookUrl()" class="bg-gray-100 px-3 py-2 rounded-xl text-xs font-bold">คัดลอก URL</button></div><p class="text-[10px] text-gray-400">นำ URL นี้ไปวางที่ LINE Developers Console → Messaging API → Webhook URL แล้วกด Verify หลัง Deploy Code.gs v3.6.2</p><label class="text-xs"><input id="line-enabled" type="checkbox"> เปิดการแจ้งเตือน</label></div><div class="flex flex-wrap gap-2 mt-3"><button onclick="saveLineConfigForm()" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-bold">บันทึก</button><button onclick="testLineNotification()" class="bg-blue-50 text-blue-700 px-3 py-2 rounded-xl text-xs font-bold">ทดสอบส่ง</button><button onclick="setupLineDailyTrigger()" class="bg-amber-50 text-amber-700 px-3 py-2 rounded-xl text-xs font-bold">ตั้งสรุปทุกวัน 08:00</button></div></div>
 
                 <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 max-w-2xl">
                     <div class="flex items-center justify-between mb-4">
@@ -550,7 +550,7 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v3.6 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v3.6.2 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
@@ -780,6 +780,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=3.6"></script>
+    <script src="script.js?v=3.6.2"></script>
 </body>
 </html>
