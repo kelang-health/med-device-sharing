@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.6.5 LINE Enabled State Sync)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.6.6 Guided LINE Setup)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -1749,29 +1749,70 @@ async function saveLineConfigForm(){
     const token=(document.getElementById('line-token').value||'').trim();
     const targetId=(document.getElementById('line-target').value||'').trim();
     const channelSecret=(document.getElementById('line-channel-secret').value||'').trim();
-    const enabled=document.getElementById('line-enabled').checked;
+    const requestedEnabled=!!document.getElementById('line-enabled').checked;
+
     if(targetId && !/^[UCR][0-9a-fA-F]{32}$/.test(targetId)){
-        Swal.fire('Target ID ไม่ถูกต้อง','LINE Target ID ต้องขึ้นต้นด้วย U, C หรือ R และตามด้วยรหัส 32 ตัว หากยังไม่มี ID ให้เปิด Webhook แล้วส่งคำว่า “ไอดี” หา LINE OA','warning');
+        Swal.fire('Target ID ไม่ถูกต้อง','ต้องเป็น LINE User/Group/Room ID เช่น U... / C... / R... ตามด้วยรหัส 32 ตัว','warning');
         return;
     }
+
+    const current=await run('getLineConfigStatus',{});
+    if(!current || !current.success){
+        Swal.fire('ตรวจสอบสถานะไม่สำเร็จ',String((current&&current.error)||'ไม่สามารถอ่านสถานะ LINE OA ได้'),'error');
+        return;
+    }
+
+    const tokenReady=!!token || !!current.tokenConfigured;
+    const secretReady=!!channelSecret || !!current.channelSecretConfigured;
+    const targetReady=!!targetId || !!current.targetConfigured;
+
+    if(!tokenReady || !secretReady){
+        const missing=[];
+        if(!tokenReady) missing.push('Channel access token');
+        if(!secretReady) missing.push('Channel secret');
+        Swal.fire('กรอกข้อมูลระยะแรกให้ครบ','กรุณากรอก '+missing.join(' และ ')+' แล้วกดบันทึกก่อน โดย Target ID สามารถเว้นว่างในครั้งแรกได้','warning');
+        return;
+    }
+
+    // Do not enable push notifications until a valid Target exists. Token + Secret can be saved first.
+    const enabled=requestedEnabled && targetReady;
     const btn=document.getElementById('btn-line-save');
     const oldHtml=btn?btn.innerHTML:'';
-    if(btn){btn.disabled=true;btn.classList.add('opacity-60','cursor-not-allowed');btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';}
+    if(btn){
+        btn.disabled=true;
+        btn.style.opacity='0.7';
+        btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+    }
     try{
         const r=await run('saveLineConfig',{channelAccessToken:token,targetId,channelSecret,enabled});
+        if(!r.success){
+            Swal.fire('บันทึกไม่สำเร็จ',r.error||'ไม่สามารถบันทึกการตั้งค่า LINE OA ได้','error');
+            return;
+        }
+
+        document.getElementById('line-token').value='';
+        document.getElementById('line-channel-secret').value='';
+        document.getElementById('line-target').value='';
         const enabledBox=document.getElementById('line-enabled');
-        if(enabledBox && r && r.success) enabledBox.checked=!!r.enabled;
-        if(r.success){
-            document.getElementById('line-token').value='';
-            document.getElementById('line-channel-secret').value='';
-            document.getElementById('line-target').value='';
-            await Swal.fire('บันทึกการตั้งค่าแล้ว','Token และ Channel Secret ถูกเก็บใน Apps Script Script Properties เรียบร้อย','success');
-            await loadLineConfigStatus();
+        if(enabledBox) enabledBox.checked=!!r.enabled;
+        await loadLineConfigStatus();
+
+        if(!targetReady){
+            await Swal.fire({
+                title:'บันทึก Token + Secret แล้ว',
+                html:'<div class="text-left text-sm leading-7">ขั้นต่อไป:<br>1. นำ Webhook URL ไปกด <b>Verify</b> ใน LINE Developers<br>2. เปิด <b>Use webhook</b><br>3. ส่งคำว่า <b>ไอดี</b> หา LINE OA<br>4. นำค่า <b>U...</b> หรือ <b>C...</b> กลับมาใส่ Target แล้วติ๊ก “เปิดการแจ้งเตือน LINE OA” และบันทึกอีกครั้ง</div>',
+                icon:'success',
+                confirmButtonText:'เข้าใจแล้ว'
+            });
         }else{
-            Swal.fire('บันทึกไม่สำเร็จ',r.error||'เกิดข้อผิดพลาด','error');
+            await Swal.fire('บันทึกการตั้งค่าแล้ว',enabled?'LINE OA พร้อมสำหรับทดสอบส่งแล้ว':'Token / Secret / Target ถูกบันทึกแล้ว หากต้องการส่งแจ้งเตือนให้ติ๊กเปิดการแจ้งเตือนแล้วบันทึกอีกครั้ง','success');
         }
     }finally{
-        if(btn){btn.disabled=false;btn.classList.remove('opacity-60','cursor-not-allowed');btn.innerHTML=oldHtml;}
+        if(btn){
+            btn.disabled=false;
+            btn.style.opacity='1';
+            btn.innerHTML=oldHtml||'<i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า LINE OA';
+        }
     }
 }
 
