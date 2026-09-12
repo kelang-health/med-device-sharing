@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=3.6.5" />
+    <link rel="stylesheet" href="style.css?v=3.6.6" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -465,8 +465,12 @@
                         </label>
                     </div>
 
+                    <div class="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-[11px] text-emerald-800 leading-5">
+                        <b>ตั้งค่าครั้งแรก 2 ระยะ:</b> ① กรอก Channel access token + Channel secret แล้วบันทึกก่อน ② Verify Webhook → ส่งคำว่า “ไอดี” หา LINE OA → นำ U.../C... มาใส่ Target → เปิดการแจ้งเตือนแล้วบันทึกอีกครั้ง
+                    </div>
+
                     <div class="mt-4 border-t border-gray-100 pt-4">
-                        <button id="btn-line-save" type="button" onclick="saveLineConfigForm()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-sm transition flex items-center justify-center gap-2">
+                        <button id="btn-line-save" type="button" onclick="saveLineConfigForm()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-sm transition flex items-center justify-center gap-2" style="background:#059669;color:#ffffff;min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;opacity:1;visibility:visible;width:100%;font-weight:700;border-radius:12px;">
                             <i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า LINE OA
                         </button>
                         <p class="text-[10px] text-gray-400 text-center mt-1.5">ปุ่มนี้ใช้บันทึก Token, Channel Secret, Target ID และสถานะเปิด/ปิดการแจ้งเตือน</p>
@@ -602,7 +606,7 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v3.6.5 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v3.6.6 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
@@ -832,6 +836,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=3.6.5"></script>
+    <script src="script.js?v=3.6.6"></script>
 </body>
 </html>
