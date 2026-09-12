@@ -18,8 +18,16 @@ jobs:
         with:
           ref: work/v3.6-audit-security
           fetch-depth: 0
-      - name: Apply patch
-        run: python3 tools/apply_v36.py
+      - name: Fix patcher helper and apply
+        run: |
+          python3 - <<'PY'
+          p='tools/apply_v36.py'
+          s=open(p,encoding='utf-8').read()
+          s=s.replace("m=re.search(rf'(?m)^function\\s+{re.escape(name)}\\s*\\(',src)", "m=re.search(rf'(?m)^(?:async\\s+)?function\\s+{re.escape(name)}\\s*\\(',src)")
+          s=s.replace("m2=re.search(r'(?m)^function\\s+[A-Za-z0-9_]+\\s*\\(',src[m.end():])", "m2=re.search(r'(?m)^(?:async\\s+)?function\\s+[A-Za-z0-9_]+\\s*\\(',src[m.end():])")
+          open(p,'w',encoding='utf-8').write(s)
+          PY
+          python3 tools/apply_v36.py
       - name: Validate
         run: |
           node --check script.js
