@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v2.3 Security Hotfix)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.5 Renewal & Tracking)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -58,7 +58,8 @@ let state = {
     adminName: '',
     data: [],       
     publics: [],    
-    equipments: [], 
+    equipments: [],
+    publicSummary: null,
     currentTab: 'dashboard'
 };
 // ตัวแปรควบคุมระบบการแบ่งหน้าแสดงผลทั้ง 3 ส่วนหลัก (หน้าละ 20 แถว)
@@ -221,27 +222,24 @@ async function checkAuthSession() {
 
 async function loadSystemData() {
     try {
-        // Public โหลดเฉพาะข้อมูลที่ไม่มี PII: Publics + Equipments
-        const [resPub, resEq] = await Promise.all([
+        const [resPub, resEq, resSummary] = await Promise.all([
             run('getData', { sheetName: 'Publics' }),
-            run('getData', { sheetName: 'Equipments' })
+            run('getData', { sheetName: 'Equipments' }),
+            run('getPublicDashboard', {})
         ]);
 
         state.publics = resPub.success ? (resPub.data || []) : [];
         state.equipments = resEq.success ? (resEq.data || []) : [];
+        state.publicSummary = resSummary && resSummary.success ? (resSummary.data || null) : null;
         state.data = [];
 
         if (state.isAdmin) {
             const resLog = await run('getData', { sheetName: 'BorrowLog' });
             if (resLog.success) state.data = resLog.data || [];
         } else {
-            // Public ใช้เฉพาะสถานะอุปกรณ์เพื่อคำนวณสถิติ ไม่โหลดชื่อ/CID/โทร/GPS/รูป
             state.data = state.equipments
                 .filter(eq => ['Borrowed', 'ยืม'].includes(String(eq.Status || eq[3] || '').trim()))
-                .map(eq => ({
-                    EquipmentID: eq.EquipmentID || eq[0] || '',
-                    Status: 'Borrowed'
-                }));
+                .map(eq => ({ EquipmentID: eq.EquipmentID || eq[0] || '', Status: 'Borrowed' }));
         }
 
         applySystemConfiguration();
@@ -317,33 +315,95 @@ function getEquipmentStatus(eq, borrowedSet) {
     return set.has(eqId) ? 'Borrowed' : 'Available';
 }
 
-// ตรวจสอบว่ารายการยืมเกินกำหนดสัญญา 6 เดือนแล้วหรือยัง
+function addMonthsClient(dateValue, months) {
+    const d = new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return null;
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + Number(months || 0));
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, lastDay));
+    return d;
+}
+
+function getBorrowDueDate(row) {
+    const explicit = row && (row.DueDate || row.dueDate);
+    if (explicit) {
+        const d = new Date(explicit);
+        if (!Number.isNaN(d.getTime())) return d;
+    }
+    const rawDate = row && (row.BorrowDate || row[9]);
+    return rawDate ? addMonthsClient(rawDate, 6) : null;
+}
+
+function getExtensionCount(row) {
+    return Number((row && (row.ExtensionCount ?? row.extensionCount)) || 0) || 0;
+}
+
 function isOverdueBorrow(row) {
-    const rawDate = row.BorrowDate || row[9];
-    if (!rawDate) return false;
-    const dueDate = new Date(rawDate);
-    dueDate.setMonth(dueDate.getMonth() + 6);
-    return dueDate.getTime() < Date.now();
+    const due = getBorrowDueDate(row);
+    if (!due) return false;
+    const end = new Date(due);
+    end.setHours(23, 59, 59, 999);
+    return end.getTime() < Date.now();
+}
+
+function isNearDueBorrow(row) {
+    const due = getBorrowDueDate(row);
+    if (!due) return false;
+    const end = new Date(due);
+    end.setHours(23, 59, 59, 999);
+    const diff = end.getTime() - Date.now();
+    return diff >= 0 && diff <= 30 * 86400000;
 }
 
 function renderDashboardStats() {
     const totalEq = state.equipments.length;
-    document.getElementById('stat-total-eq').innerText = totalEq;
-
     const activeBorrows = getActiveBorrows();
-    const borrowedCount = activeBorrows.length;
-    document.getElementById('stat-borrow-eq').innerText = borrowedCount;
 
-    const availableCount = totalEq - borrowedCount;
-    document.getElementById('stat-avail-eq').innerText = availableCount >= 0 ? availableCount : 0;
+    let borrowedCount;
+    let availableCount;
+    let overdueCount;
+    let nearDueCount;
+    let extendedCount;
+    let totalLogs;
 
-    const overdueCount = activeBorrows.filter(isOverdueBorrow).length;
-    const overdueEl = document.getElementById('stat-overdue-eq');
-    if (overdueEl) overdueEl.innerText = overdueCount;
+    if (state.isAdmin) {
+        borrowedCount = activeBorrows.length;
+        availableCount = Math.max(0, totalEq - borrowedCount);
+        overdueCount = activeBorrows.filter(isOverdueBorrow).length;
+        nearDueCount = activeBorrows.filter(r => !isOverdueBorrow(r) && isNearDueBorrow(r)).length;
+        extendedCount = activeBorrows.filter(r => getExtensionCount(r) > 0).length;
+        totalLogs = state.data.length;
+    } else if (state.publicSummary) {
+        borrowedCount = Number(state.publicSummary.borrowed || 0);
+        availableCount = Number(state.publicSummary.available ?? Math.max(0, totalEq - borrowedCount));
+        overdueCount = Number(state.publicSummary.overdue || 0);
+        nearDueCount = Number(state.publicSummary.nearDue || 0);
+        extendedCount = Number(state.publicSummary.extended || 0);
+        totalLogs = Number(state.publicSummary.totalBorrowRecords || 0);
+    } else {
+        borrowedCount = activeBorrows.length;
+        availableCount = Math.max(0, totalEq - borrowedCount);
+        overdueCount = 0;
+        nearDueCount = 0;
+        extendedCount = 0;
+        totalLogs = 0;
+    }
 
-    document.getElementById('stat-total-logs').innerText = state.data.length;
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = value;
+    };
+    setText('stat-total-eq', totalEq);
+    setText('stat-borrow-eq', borrowedCount);
+    setText('stat-avail-eq', availableCount);
+    setText('stat-overdue-eq', overdueCount);
+    setText('stat-near-due', nearDueCount);
+    setText('stat-extended-eq', extendedCount);
+    setText('stat-total-logs', totalLogs);
 
-    renderUsageAllocationBar(totalEq, availableCount >= 0 ? availableCount : 0, borrowedCount, overdueCount);
+    renderUsageAllocationBar(totalEq, availableCount, borrowedCount, overdueCount);
     updateSidebarBorrowBadge(borrowedCount);
     updateSidebarTrackingBadge(overdueCount);
 }
@@ -683,8 +743,7 @@ function printLoanReceipt(entryId) {
     const bDate = rawDate ? new Date(rawDate) : new Date();
     const dateFormatted = bDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
     
-    const dDate = new Date(bDate);
-    dDate.setMonth(dDate.getMonth() + 6); // บวกกรอบสัญญาระยะเวลา 6 เดือนสากล
+    const dDate = getBorrowDueDate(row) || addMonthsClient(bDate, 6) || bDate;
     const endDateFormatted = dDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 
     // 📦 ค้นหารหัสครุภัณฑ์และแมปข้อมูลชื่อรุ่นกายอุปกรณ์จากสต็อกพัสดุ
@@ -751,34 +810,58 @@ function printLoanReceipt(entryId) {
     document.body.classList.remove('print-mode-receipt');
 }
 
-// 🗃️ แคชรายการติดตามที่ผ่านการค้นหา/กรองล่าสุด ใช้ทั้งแสดงผลแบ่งหน้าบนจอ และพิมพ์รายงานฉบับเต็มทุกรายการ
+// 🗃️ แคชรายการติดตามที่ผ่านการค้นหา/กรองล่าสุด ใช้ทั้งแสดงผลและพิมพ์รายงาน
 let trackingFilteredCache = [];
 
-function buildTrackingRows(rows) {
+function buildTrackingRows(rows, forPrint = false) {
+    const colspan = forPrint ? 8 : 9;
     if (rows.length === 0) {
-        return `<tr><td colspan="8" class="text-center p-6 text-gray-400">🎉 ไม่มีรายการกายอุปกรณ์ค้างส่งคืนตรงกับเงื่อนไขที่ค้นหา</td></tr>`;
+        return `<tr><td colspan="${colspan}" class="text-center p-6 text-gray-400">🎉 ไม่มีรายการกายอุปกรณ์ตรงกับเงื่อนไขที่ค้นหา</td></tr>`;
     }
+
     return rows.map(item => {
-        const { eqId, borrowerDetails, borrowDateStr, dueDateStr, phone, overdue } = item;
-        const signalBadge = overdue
-            ? `<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-100 text-rose-700 border border-rose-200">⚠️ เกินกำหนด</span>`
-            : `<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">ปกติ</span>`;
-        return `
-            <tr class="hover:bg-gray-50/70 transition ${overdue ? 'bg-rose-50/30' : ''}">
-                <td class="border border-gray-200 p-2 font-semibold text-orange-600">${eqId}</td>
-                <td class="border border-gray-200 p-2 text-left">${borrowerDetails}</td>
-                <td class="border border-gray-200 p-2 text-gray-500">กำลังยืมใช้งาน</td>
-                <td class="border border-gray-200 p-2">6 เดือน</td>
-                <td class="border border-gray-200 p-2 text-emerald-600">${borrowDateStr}</td>
-                <td class="border border-gray-200 p-2 font-bold text-rose-600 bg-rose-50/40">${dueDateStr}</td>
-                <td class="border border-gray-200 p-2 font-mono">${phone}</td>
-                <td class="border border-gray-200 p-2">${signalBadge}</td>
-            </tr>
-        `;
+        const { entryId, eqId, borrowerDetails, borrowDateStr, dueDateStr, phone, overdue, nearDue, extended, extensionCount } = item;
+
+        let signalBadge;
+        if (overdue) {
+            signalBadge = `<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-100 text-rose-700 border border-rose-200">⚠️ เกินกำหนด</span>`;
+        } else if (extended) {
+            signalBadge = `<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700 border border-blue-200">🔵 ยืมต่อ</span>`;
+        } else if (nearDue) {
+            signalBadge = `<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-700 border border-amber-200">⏳ ใกล้ครบกำหนด</span>`;
+        } else {
+            signalBadge = `<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">ปกติ</span>`;
+        }
+
+        const extensionText = extensionCount > 0
+            ? `<span class="font-bold text-blue-700">ต่อแล้ว ${extensionCount} ครั้ง</span>${extensionCount >= 3 ? '<br><span class="text-[9px] font-bold text-amber-700">⚠️ ติดตามพิเศษ</span>' : ''}`
+            : '<span class="text-gray-400">ยังไม่เคยยืมต่อ</span>';
+
+        const dueClass = overdue
+            ? 'font-bold text-rose-700 bg-rose-50/60'
+            : (nearDue ? 'font-bold text-amber-700 bg-amber-50/60' : 'font-semibold text-gray-700');
+
+        const cells = `
+            <td class="border border-gray-200 p-2 font-semibold text-orange-600">${eqId}</td>
+            <td class="border border-gray-200 p-2 text-left">${borrowerDetails}</td>
+            <td class="border border-gray-200 p-2 text-gray-500">กำลังยืมใช้งาน</td>
+            <td class="border border-gray-200 p-2">${extensionText}</td>
+            <td class="border border-gray-200 p-2 text-emerald-600">${borrowDateStr}</td>
+            <td class="border border-gray-200 p-2 ${dueClass}">${dueDateStr}</td>
+            <td class="border border-gray-200 p-2 font-mono">${phone}</td>
+            <td class="border border-gray-200 p-2">${signalBadge}</td>`;
+
+        const actionCell = forPrint ? '' : `
+            <td class="border border-gray-200 p-2 print:hidden">
+                ${overdue
+                    ? `<button onclick="openExtendBorrowPrompt('${entryId}')" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-sm transition whitespace-nowrap"><i class="fa-solid fa-calendar-plus mr-1"></i>ยืมต่อ</button>`
+                    : '<span class="text-gray-300">—</span>'}
+            </td>`;
+
+        return `<tr class="hover:bg-gray-50/70 transition ${overdue ? 'bg-rose-50/30' : extended ? 'bg-blue-50/20' : ''}">${cells}${actionCell}</tr>`;
     }).join('');
 }
 
-// 📋 คำนวณและเรนเดอร์หน้ารายงานสถานะ/ติดตามอุปกรณ์ (พร้อมค้นหา กรองสถานะ และแบ่งหน้าเมื่อเกิน 20 รายการ)
 function renderTrackingSection() {
     const tbody = document.getElementById('tracking-table-body');
     if (!tbody) return;
@@ -790,66 +873,153 @@ function renderTrackingSection() {
 
     const borrowedItems = getActiveBorrows();
     let overdueTally = 0;
+    let nearDueTally = 0;
+    let extendedTally = 0;
 
     const enriched = borrowedItems.map(row => {
-        const eqId = row.EquipmentID || row[5];
-        const patient = row.PatientName || row.BorrowerName || row[13] || row[1];
+        const entryId = row.EntryID || row[0] || '';
+        const eqId = row.EquipmentID || row[5] || '';
+        const patient = row.PatientName || row.BorrowerName || row[13] || row[1] || '-';
         const address = row.Address || row[3] || '';
         const community = row.Community || row[4] || '';
         const phone = row.Phone || row[12] || '-';
+        const extensionCount = getExtensionCount(row);
         const overdue = isOverdueBorrow(row);
-        if (overdue) overdueTally++;
+        const nearDue = !overdue && isNearDueBorrow(row);
+        const extended = extensionCount > 0;
 
-        let borrowDateStr = '-', dueDateStr = '-';
+        if (overdue) overdueTally++;
+        if (nearDue) nearDueTally++;
+        if (extended) extendedTally++;
+
         const rawDate = row.BorrowDate || row[9];
-        if (rawDate) {
-            const bDate = new Date(rawDate);
-            borrowDateStr = bDate.toLocaleDateString('th-TH');
-            const dDate = new Date(bDate);
-            dDate.setMonth(dDate.getMonth() + 6);
-            dueDateStr = dDate.toLocaleDateString('th-TH');
-        }
+        const dueDate = getBorrowDueDate(row);
+        const borrowDateStr = rawDate ? new Date(rawDate).toLocaleDateString('th-TH') : '-';
+        const dueDateStr = dueDate ? dueDate.toLocaleDateString('th-TH') : '-';
 
         return {
-            eqId,
+            entryId, eqId,
             borrowerDetails: `${patient} (${address} เขต ${community})`,
-            searchBlob: `${eqId} ${patient} ${phone}`.toLowerCase(),
-            borrowDateStr, dueDateStr, phone, overdue
+            searchBlob: `${eqId} ${patient} ${phone} ${community}`.toLowerCase(),
+            borrowDateStr, dueDateStr, phone, overdue, nearDue, extended, extensionCount
         };
     });
 
     const filtered = enriched.filter(item => {
         if (statusFilter === 'overdue' && !item.overdue) return false;
-        if (statusFilter === 'normal' && item.overdue) return false;
+        if (statusFilter === 'near' && !item.nearDue) return false;
+        if (statusFilter === 'extended' && !item.extended) return false;
+        if (statusFilter === 'normal' && (item.overdue || item.nearDue || item.extended)) return false;
         if (!keyword) return true;
         return item.searchBlob.includes(keyword);
     });
 
     trackingFilteredCache = filtered;
-
     const totalItems = filtered.length;
     const totalPages = Math.ceil(totalItems / rowsPerPageLimit) || 1;
     if (trackingCurrentPage > totalPages) trackingCurrentPage = totalPages;
     const startIdx = (trackingCurrentPage - 1) * rowsPerPageLimit;
     const pageItems = filtered.slice(startIdx, startIdx + rowsPerPageLimit);
 
-    tbody.innerHTML = buildTrackingRows(pageItems);
+    tbody.innerHTML = buildTrackingRows(pageItems, false);
 
     const summaryEl = document.getElementById('tracking-summary-info');
     if (summaryEl) {
-        summaryEl.innerText = `รายการค้างส่งคืนทั้งหมด ${borrowedItems.length} รายการ (เกินกำหนด ${overdueTally} รายการ)${keyword || statusFilter !== 'all' ? ` — ตรงเงื่อนไข ${totalItems} รายการ` : ''}`;
+        summaryEl.innerText = `กำลังยืม ${borrowedItems.length} รายการ • เกินกำหนด ${overdueTally} • ใกล้ครบ ${nearDueTally} • เคยยืมต่อ ${extendedTally}${keyword || statusFilter !== 'all' ? ` — ตรงเงื่อนไข ${totalItems}` : ''}`;
     }
 
-    buildPaginationDashboardControls(
-        'tracking-pagination-controls',
-        'tracking-pagination-info',
-        trackingCurrentPage,
-        totalItems,
-        rowsPerPageLimit,
-        'changeTrackingPage'
-    );
-
+    buildPaginationDashboardControls('tracking-pagination-controls', 'tracking-pagination-info', trackingCurrentPage, totalItems, rowsPerPageLimit, 'changeTrackingPage');
     updateSidebarTrackingBadge(overdueTally);
+}
+
+async function openExtendBorrowPrompt(entryId) {
+    const row = state.data.find(r => String(r.EntryID || r[0] || '') === String(entryId));
+    if (!row) {
+        Swal.fire('ไม่พบข้อมูล', 'ไม่พบรายการยืมที่ต้องการยืมต่อ', 'error');
+        return;
+    }
+    if (!isOverdueBorrow(row)) {
+        Swal.fire('ยังไม่เกินกำหนด', 'ระบบอนุญาตให้ยืมต่อจากหน้าติดตามเมื่อรายการเกินกำหนดแล้วเท่านั้น', 'info');
+        return;
+    }
+
+    const eqId = row.EquipmentID || row[5] || '-';
+    const patient = row.PatientName || row.BorrowerName || row[13] || row[1] || '-';
+    const dueDate = getBorrowDueDate(row);
+    const dueText = dueDate ? dueDate.toLocaleDateString('th-TH') : '-';
+
+    const result = await Swal.fire({
+        title: 'ยืนยันการยืมต่อ',
+        html: `
+            <div class="text-left text-xs space-y-3">
+                <div class="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                    <div><b>อุปกรณ์:</b> ${eqId}</div>
+                    <div><b>ผู้ยืม/ผู้ป่วย:</b> ${patient}</div>
+                    <div><b>กำหนดเดิม:</b> <span class="text-rose-600 font-bold">${dueText}</span></div>
+                    <div><b>เคยยืมต่อ:</b> ${getExtensionCount(row)} ครั้ง</div>
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-600 mb-1">ระยะเวลายืมต่อ</label>
+                    <select id="extend-months" class="swal2-select" style="display:block;width:100%;margin:0;">
+                        <option value="1">1 เดือน</option>
+                        <option value="2">2 เดือน</option>
+                        <option value="3">3 เดือน</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-600 mb-1">ผลการติดตาม / เหตุผลการยืมต่อ</label>
+                    <textarea id="extend-reason" class="swal2-textarea" style="display:block;width:100%;margin:0;min-height:85px;" placeholder="เช่น ผู้ป่วยยังมีความจำเป็นต้องใช้อุปกรณ์ต่อเนื่อง"></textarea>
+                </div>
+                <label class="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 cursor-pointer">
+                    <input type="checkbox" id="extend-confirm-followup" class="mt-0.5">
+                    <span>ยืนยันว่าเจ้าหน้าที่ได้ติดตามและตรวจสอบว่ายังมีการใช้อุปกรณ์อยู่จริง</span>
+                </label>
+            </div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันยืมต่อ',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#2563eb',
+        focusConfirm: false,
+        preConfirm: () => {
+            const months = Number(document.getElementById('extend-months').value);
+            const reason = document.getElementById('extend-reason').value.trim();
+            const confirmed = document.getElementById('extend-confirm-followup').checked;
+            if (![1, 2, 3].includes(months)) {
+                Swal.showValidationMessage('กรุณาเลือกระยะเวลายืมต่อ 1–3 เดือน');
+                return false;
+            }
+            if (reason.length < 3) {
+                Swal.showValidationMessage('กรุณาระบุผลการติดตามหรือเหตุผลการยืมต่อ');
+                return false;
+            }
+            if (!confirmed) {
+                Swal.showValidationMessage('กรุณายืนยันว่าได้ติดตามการใช้อุปกรณ์แล้ว');
+                return false;
+            }
+            return { months, reason };
+        }
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+    Swal.fire({ title: 'กำลังบันทึกการยืมต่อ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    const res = await run('extendBorrow', { EntryID: entryId, months: result.value.months, reason: result.value.reason });
+
+    if (res.success) {
+        const newDue = res.newDueDate ? new Date(res.newDueDate).toLocaleDateString('th-TH') : '-';
+        await Swal.fire('ยืมต่อสำเร็จ', `ต่ออายุ ${res.months} เดือน • กำหนดใหม่ ${newDue} • ครั้งที่ ${res.extensionCount}`, 'success');
+        await loadSystemData();
+        renderTrackingSection();
+    } else if (res.schemaUpgradeRequired) {
+        Swal.fire({
+            title: 'ต้องอัปเกรดโครงสร้างก่อน',
+            text: res.error || 'กรุณาไปที่เมนูตั้งค่าแล้วกดอัปเกรดโครงสร้าง v3.5',
+            icon: 'warning',
+            confirmButtonText: 'ไปหน้าตั้งค่า'
+        }).then(r => { if (r.isConfirmed) switchTab('settings'); });
+    } else {
+        Swal.fire('ยืมต่อไม่สำเร็จ', res.error || 'เกิดข้อผิดพลาด', 'error');
+    }
 }
 
 function changeTrackingPage(targetPage) {
@@ -857,7 +1027,6 @@ function changeTrackingPage(targetPage) {
     renderTrackingSection();
 }
 
-// 🔔 อัปเดตตัวเลขแจ้งเตือนจำนวนรายการเกินกำหนดคืนบนเมนูข้างซ้าย
 function updateSidebarTrackingBadge(overdueTally) {
     const badge = document.getElementById('menu-badge-tracking');
     if (!badge) return;
@@ -871,7 +1040,7 @@ function updateSidebarTrackingBadge(overdueTally) {
 
 function printTrackingReport() {
     // พิมพ์รายงานตามรายการที่ผ่านการค้นหา/กรองล่าสุดทั้งหมด (ไม่จำกัดเฉพาะหน้าที่กำลังแสดงอยู่บนจอ)
-    document.getElementById('tracking-print-body').innerHTML = buildTrackingRows(trackingFilteredCache);
+    document.getElementById('tracking-print-body').innerHTML = buildTrackingRows(trackingFilteredCache, true);
     document.body.classList.add('print-mode-tracking');
     window.print();
     document.body.classList.remove('print-mode-tracking');
@@ -1007,6 +1176,7 @@ function switchTab(tabId) {
     }
     if (tabId === 'settings') {
         loadAdminUsersSection();
+        checkSchemaStatus();
     }
 }
 
@@ -1489,6 +1659,56 @@ function closeImageGallery() {
 }
 function openEquipmentModal() { document.getElementById('modal-equipment').classList.add('active'); }
 function closeEquipmentModal() { document.getElementById('modal-equipment').classList.remove('active'); }
+
+async function checkSchemaStatus() {
+    const box = document.getElementById('schema-status');
+    if (!box) return;
+    box.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังตรวจสอบโครงสร้างข้อมูล...';
+    try {
+        const res = await run('getSchemaStatus', {});
+        if (res.success && res.ready) {
+            box.className = 'text-[11px] text-emerald-700 mt-2';
+            box.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> โครงสร้างข้อมูลพร้อมใช้งาน v3.5';
+        } else if (res.success) {
+            const missing = [...(res.missingColumns || []), ...(res.missingSheets || [])].join(', ');
+            box.className = 'text-[11px] text-amber-700 mt-2';
+            box.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ต้องอัปเกรด: ${missing || 'โครงสร้างยังไม่ครบ'}`;
+        } else {
+            box.className = 'text-[11px] text-rose-600 mt-2';
+            box.textContent = res.error || 'ตรวจสอบโครงสร้างไม่สำเร็จ';
+        }
+    } catch (e) {
+        box.className = 'text-[11px] text-rose-600 mt-2';
+        box.textContent = 'ไม่สามารถตรวจสอบ backend ได้';
+    }
+}
+
+async function upgradeSchemaV35() {
+    const confirm = await Swal.fire({
+        title: 'อัปเกรดโครงสร้างเป็น v3.5?',
+        html: '<div class="text-xs text-left">ระบบจะ <b>เพิ่มเฉพาะ</b> คอลัมน์ DueDate, ExtensionCount, LastExtensionDate และสร้างชีต BorrowExtensionLog เฉพาะเมื่อยังไม่มี<br><br><b>จะไม่ลบ ไม่ clear และไม่เขียนทับข้อมูลเดิม</b></div>',
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันอัปเกรด',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#4f46e5'
+    });
+    if (!confirm.isConfirmed) return;
+
+    Swal.fire({ title: 'กำลังตรวจและอัปเกรดโครงสร้าง...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    const res = await run('upgradeSchema', {});
+    if (res.success) {
+        const additions = [
+            ...(res.addedColumns || []).map(x => `คอลัมน์ ${x}`),
+            ...(res.createdSheets || []).map(x => `ชีต ${x}`)
+        ];
+        await Swal.fire('อัปเกรดสำเร็จ', additions.length ? `${res.message}<br><br>เพิ่ม: ${additions.join(', ')}` : res.message, 'success');
+        await checkSchemaStatus();
+        await loadSystemData();
+    } else {
+        Swal.fire('อัปเกรดไม่สำเร็จ', res.error || 'เกิดข้อผิดพลาด', 'error');
+    }
+}
 
 // 👥 โหลดรายชื่อผู้ใช้งานสิทธิ์ Admin ทั้งหมดมาแสดงในหน้าตั้งค่า
 async function loadAdminUsersSection() {
