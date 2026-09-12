@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=3.4" />
+    <link rel="stylesheet" href="style.css?v=3.5" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -118,7 +118,7 @@
                     </button>
                 </div>
                 
-                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4" id="dashboard-kpi-grid">
+                <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4" id="dashboard-kpi-grid">
                     <div class="stat-card bg-blue-50/70 border border-blue-100/50 p-4 rounded-2xl relative overflow-hidden shadow-sm">
                         <p class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">อุปกรณ์ทั้งหมดในคลัง</p>
                         <h4 id="stat-total-eq" class="text-2xl font-black text-blue-900 mt-1">0</h4>
@@ -135,9 +135,19 @@
                         <i class="fa-solid fa-handshake-angle text-4xl text-rose-200/40 absolute bottom-2 right-2"></i>
                     </div>
                     <div class="stat-card bg-amber-50/70 border border-amber-100/50 p-4 rounded-2xl relative overflow-hidden shadow-sm">
-                        <p class="text-[11px] font-bold text-amber-600 uppercase tracking-wider">เกินกำหนดคืน (6 ด.)</p>
+                        <p class="text-[11px] font-bold text-amber-600 uppercase tracking-wider">เกินกำหนดคืน</p>
                         <h4 id="stat-overdue-eq" class="text-2xl font-black text-amber-900 mt-1">0</h4>
                         <i class="fa-solid fa-triangle-exclamation text-4xl text-amber-200/40 absolute bottom-2 right-2"></i>
+                    </div>
+                    <div class="stat-card bg-yellow-50/70 border border-yellow-100/50 p-4 rounded-2xl relative overflow-hidden shadow-sm">
+                        <p class="text-[11px] font-bold text-yellow-700 uppercase tracking-wider">ใกล้ครบ ≤30 วัน</p>
+                        <h4 id="stat-near-due" class="text-2xl font-black text-yellow-900 mt-1">0</h4>
+                        <i class="fa-solid fa-hourglass-half text-4xl text-yellow-200/50 absolute bottom-2 right-2"></i>
+                    </div>
+                    <div class="stat-card bg-sky-50/70 border border-sky-100/50 p-4 rounded-2xl relative overflow-hidden shadow-sm">
+                        <p class="text-[11px] font-bold text-sky-700 uppercase tracking-wider">ยืมต่ออยู่</p>
+                        <h4 id="stat-extended-eq" class="text-2xl font-black text-sky-900 mt-1">0</h4>
+                        <i class="fa-solid fa-calendar-plus text-4xl text-sky-200/50 absolute bottom-2 right-2"></i>
                     </div>
                     <div class="stat-card bg-purple-50/70 border border-purple-100/50 p-4 rounded-2xl relative overflow-hidden shadow-sm">
                         <p class="text-[11px] font-bold text-purple-600 uppercase tracking-wider">ประวัติบันทึกรวม</p>
@@ -306,7 +316,7 @@
                 <div class="flex justify-between items-center print:hidden">
                     <div>
                         <h3 class="text-base font-bold text-gray-800">รายงานสถานะและประวัติการติดตามกายอุปกรณ์ทางการแพทย์</h3>
-                        <p class="text-xs text-gray-400">ตรวจสอบรายการที่กำลังถูกยืมใช้งานอยู่ทั้งหมด และไล่ติดตามรายการที่เกินกำหนดคืน 6 เดือน</p>
+                        <p class="text-xs text-gray-400">ติดตามกำหนดคืนเดิม 6 เดือน รายการใกล้ครบกำหนด รายการเกินกำหนด และรายการที่อนุมัติยืมต่อ 1–3 เดือน</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="printTrackingReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl shadow text-xs font-semibold transition-colors flex items-center gap-1.5">
@@ -323,6 +333,8 @@
                     <select id="tracking-status-filter" onchange="trackingCurrentPage=1; renderTrackingSection();" class="border border-gray-200 px-3 py-2 rounded-xl bg-white text-xs w-full md:w-56 focus:outline-none">
                         <option value="all">📁 แสดงทั้งหมด</option>
                         <option value="overdue">⚠️ เฉพาะรายการเกินกำหนด</option>
+                        <option value="near">⏳ ใกล้ครบกำหนด ≤30 วัน</option>
+                        <option value="extended">🔵 เคยอนุมัติยืมต่อ</option>
                         <option value="normal">🟢 เฉพาะรายการปกติ</option>
                     </select>
                 </div>
@@ -335,11 +347,12 @@
                                     <th class="border border-gray-200 p-2">รหัสพัสดุ</th>
                                     <th class="border border-gray-200 p-2 text-left">ชื่อผู้ป่วย/ผู้ขอยืม</th>
                                     <th class="border border-gray-200 p-2">สถานะสัญญารวม</th>
-                                    <th class="border border-gray-200 p-2">ระยะเวลาสัญญารวม</th>
+                                    <th class="border border-gray-200 p-2">การยืมต่อ</th>
                                     <th class="border border-gray-200 p-2">วันที่เริ่มยืม</th>
-                                    <th class="border border-gray-200 p-2 text-red-600">วันครบกำหนด (6 เดือน)</th>
+                                    <th class="border border-gray-200 p-2 text-red-600">วันครบกำหนดปัจจุบัน</th>
                                     <th class="border border-gray-200 p-2">เบอร์โทรสำหรับติดตาม</th>
                                     <th class="border border-gray-200 p-2">สถานะการส่งสัญญาณ</th>
+                                    <th class="border border-gray-200 p-2 print:hidden">ดำเนินการ</th>
                                 </tr>
                             </thead>
                             <tbody id="tracking-table-body" class="bg-white divide-y divide-gray-100 text-gray-600">
@@ -397,6 +410,19 @@
                             <i class="fa-solid fa-floppy-disk mr-2"></i> บันทึกข้อมูลระบบตั้งค่า
                         </button>
                     </form>
+                </div>
+
+                <div class="bg-white border border-indigo-100 rounded-2xl shadow-sm p-5 max-w-2xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2"><i class="fa-solid fa-database text-indigo-500"></i> โครงสร้างข้อมูลระบบ v3.5</h4>
+                            <p class="text-[11px] text-gray-400 mt-1">เพิ่มเฉพาะคอลัมน์/ชีตที่ขาดสำหรับระบบยืมต่อ โดยไม่ลบ ไม่ clear และไม่เขียนทับข้อมูลเดิม</p>
+                            <div id="schema-status" class="text-[11px] text-gray-500 mt-2">กดตรวจสอบหรือเปิดหน้านี้เพื่อดูสถานะโครงสร้าง</div>
+                        </div>
+                        <button onclick="upgradeSchemaV35()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 flex-shrink-0">
+                            <i class="fa-solid fa-database"></i> อัปเกรดโครงสร้าง v3.5
+                        </button>
+                    </div>
                 </div>
 
                 <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 max-w-2xl">
@@ -520,7 +546,7 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v3.4 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v3.5 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
@@ -632,7 +658,7 @@
                     <th class="border border-black p-2">รหัสพัสดุ</th>
                     <th class="border border-black p-2 text-left">รายละเอียดผู้ขอยืม/บ้านเลขที่พื้นที่</th>
                     <th class="border border-black p-2">สถานะสัญญารวม</th>
-                    <th class="border border-black p-2">ระยะเวลาสัญญารวม</th>
+                    <th class="border border-black p-2">การยืมต่อ</th>
                     <th class="border border-black p-2">วันที่เริ่มยืม</th>
                     <th class="border border-black p-2">วันครบกำหนดส่งคืน</th>
                     <th class="border border-black p-2">เบอร์โทรศัพท์</th>
@@ -731,7 +757,7 @@
                 </div>
                 <div>
                     <label class="block font-bold text-gray-500 mb-1">รหัสผ่าน (Password)</label>
-                    <input type="password" id="new-admin-password" placeholder="อย่างน้อย 4 ตัวอักษร" minlength="4" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
+                    <input type="password" id="new-admin-password" placeholder="อย่างน้อย 8 ตัวอักษร" minlength="8" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
                     <button type="button" onclick="closeAddAdminUserModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2.5 rounded-xl font-medium transition">ยกเลิก</button>
@@ -743,6 +769,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=3.4"></script>
+    <script src="script.js?v=3.5"></script>
 </body>
 </html>
