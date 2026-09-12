@@ -24,14 +24,10 @@ jobs:
         run: |
           node --check script.js
           git diff --check
-          echo "version=$(grep -c 'v3.6.3' script.js || true)"
-          echo "save=$(grep -c 'บันทึกการตั้งค่า LINE OA' index.html || true)"
-          echo "refresh=$(grep -c 'รีเฟรชสถานะ' index.html || true)"
-          echo "trigger=$(grep -c 'triggerAuthorizationRequired' script.js || true)"
-          test "$(grep -c 'v3.6.3' script.js)" -gt 0
-          test "$(grep -c 'บันทึกการตั้งค่า LINE OA' index.html)" -gt 0
-          test "$(grep -c 'รีเฟรชสถานะ' index.html)" -gt 0
-          test "$(grep -c 'triggerAuthorizationRequired' script.js)" -gt 0
+          grep -q "v3.6.3" script.js
+          grep -q "บันทึกการตั้งค่า LINE OA" index.html
+          grep -q "รีเฟรชสถานะ" index.html
+          grep -q "triggerAuthorizationRequired" script.js
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
