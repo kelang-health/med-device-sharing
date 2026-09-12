@@ -1,0 +1,46 @@
+name: Apply v3.5 renewal tracking
+
+on:
+  push:
+    branches:
+      - work/v3.5-renewal
+    paths:
+      - .github/workflows/apply-v35-renewal.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/v3.5-renewal
+          fetch-depth: 0
+
+      - name: Rebuild and run patcher
+        run: |
+          cat tools/v35.part1 tools/v35.part2 tools/v35.part3 tools/v35.part4 > /tmp/v35.b64
+          base64 -d /tmp/v35.b64 | gunzip > /tmp/apply_v35.py
+          python3 /tmp/apply_v35.py
+
+      - name: Validate frontend
+        run: |
+          node --check script.js
+          git diff --check
+          grep -q "v3.5 Renewal & Tracking" script.js
+          grep -q "openExtendBorrowPrompt" script.js
+          grep -q "upgradeSchemaV35" script.js
+          grep -q "ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v3.5" index.html
+          grep -q "วันครบกำหนดปัจจุบัน" index.html
+
+      - name: Commit patched frontend
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add script.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "v3.5: add loan renewal and safe schema upgrade UI"
+          git push origin HEAD:work/v3.5-renewal
