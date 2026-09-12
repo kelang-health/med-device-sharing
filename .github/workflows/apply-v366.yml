@@ -38,3 +38,4 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "v3.6.6: guided LINE setup and visible save action"
           git push origin HEAD:work/v3.6.6-line-setup
+# trigger
