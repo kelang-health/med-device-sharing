@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.6.4 LINE POST Cache Hotfix)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.6.5 LINE Enabled State Sync)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -1721,6 +1721,8 @@ async function loadLineConfigStatus() {
     el.className='mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-[11px] text-gray-600';
     el.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังตรวจสอบสถานะ LINE OA...';
     const r=await run('getLineConfigStatus',{});
+    const enabledBox=document.getElementById('line-enabled');
+    if(enabledBox && r && r.success) enabledBox.checked=!!r.enabled;
     if(!r.success){
         el.className='mt-3 rounded-xl border border-rose-100 bg-rose-50 p-3 text-[11px] text-rose-700';
         el.textContent=r.error||'ตรวจสอบสถานะ LINE OA ไม่สำเร็จ';
@@ -1757,6 +1759,8 @@ async function saveLineConfigForm(){
     if(btn){btn.disabled=true;btn.classList.add('opacity-60','cursor-not-allowed');btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';}
     try{
         const r=await run('saveLineConfig',{channelAccessToken:token,targetId,channelSecret,enabled});
+        const enabledBox=document.getElementById('line-enabled');
+        if(enabledBox && r && r.success) enabledBox.checked=!!r.enabled;
         if(r.success){
             document.getElementById('line-token').value='';
             document.getElementById('line-channel-secret').value='';
@@ -1779,7 +1783,7 @@ async function copyLineWebhookUrl(){
 }
 
 async function testLineNotification(){
-    const r=await run('testLineNotification',{});
+    let r=await run('testLineNotification',{});
     const err=String((r&&r.error)||'');
     if(!r.success && err.includes('GET ใช้ได้เฉพาะ action=health')){
         await Swal.fire({
@@ -1790,7 +1794,30 @@ async function testLineNotification(){
         });
         return;
     }
-    Swal.fire(r.success?'ส่งทดสอบสำเร็จ':'ส่งไม่สำเร็จ',err||'ตรวจสอบ LINE OA ได้แล้ว',r.success?'success':'error');
+    if(!r.success && err.includes('LINE notification ยังปิดอยู่')){
+        const ask=await Swal.fire({
+            title:'LINE OA ยังปิดการแจ้งเตือน',
+            text:'ต้องการเปิดการแจ้งเตือนและบันทึกสถานะตอนนี้หรือไม่?',
+            icon:'question',
+            showCancelButton:true,
+            confirmButtonText:'เปิดและบันทึก',
+            cancelButtonText:'ยังไม่เปิด',
+            confirmButtonColor:'#059669'
+        });
+        if(ask.isConfirmed){
+            const enabledBox=document.getElementById('line-enabled');
+            if(enabledBox) enabledBox.checked=true;
+            const save=await run('saveLineConfig',{channelAccessToken:'',targetId:'',channelSecret:'',enabled:true});
+            if(!save.success){
+                Swal.fire('เปิดการแจ้งเตือนไม่สำเร็จ',save.error||'ไม่สามารถบันทึกสถานะ LINE OA ได้','error');
+                return;
+            }
+            r=await run('testLineNotification',{});
+        }else{
+            return;
+        }
+    }
+    Swal.fire(r.success?'ส่งทดสอบสำเร็จ':'ส่งไม่สำเร็จ',String((r&&r.error)||'')||'ตรวจสอบ LINE OA ได้แล้ว',r.success?'success':'error');
 }
 async function setupLineDailyTrigger(){
     const r=await run('setupLineDailyTrigger',{});
