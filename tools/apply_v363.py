@@ -15,7 +15,7 @@ def replace_func(src, name, new):
 # ---- index.html ----
 p=Path('index.html')
 s=p.read_text(encoding='utf-8')
-s=s.replace('v3.6.2', REPO_VERSION)
+s=re.sub(r'v3\.6\.2', REPO_VERSION, s)
 start='<div class="admin-role-only bg-white border border-emerald-100 rounded-2xl shadow-sm p-5 max-w-2xl"><h4 class="font-bold text-sm">LINE OA แจ้งเตือน</h4>'
 end='\n\n                <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 max-w-2xl">'
 i=s.find(start)
@@ -83,7 +83,9 @@ p.write_text(s,encoding='utf-8')
 # ---- script.js ----
 p=Path('script.js')
 s=p.read_text(encoding='utf-8')
-s=s.replace('v3.6.2', REPO_VERSION)
+s=re.sub(r'Frontend Controller API \(v[^)]*\)', f'Frontend Controller API (v{REPO_VERSION} LINE Settings UI)', s, count=1)
+# ensure cache/version-related older marker is also upgraded if present
+s=re.sub(r'v3\.6\.2', REPO_VERSION, s)
 
 s=replace_func(s,'loadLineConfigStatus',f'''async function loadLineConfigStatus() {{
     const el=document.getElementById('line-config-status');
