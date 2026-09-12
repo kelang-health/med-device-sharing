@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.6.2 LINE Webhook)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.6.3 LINE Settings UI)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -1713,15 +1713,34 @@ async function upgradeSchemaV35() {
 // 👥 โหลดรายชื่อผู้ใช้งานสิทธิ์ Admin ทั้งหมดมาแสดงในหน้าตั้งค่า
 
 async function loadAuditLogSection(){const box=document.getElementById('audit-log-list');if(!box)return;box.innerHTML='กำลังโหลด...';const res=await run('getAuditLog',{limit:50});if(!res.success){box.textContent=res.error||'โหลดไม่สำเร็จ';return;}box.innerHTML=(res.data||[]).map(x=>`<div class="border-b py-2"><b>${escapeHtml(x.Action)}</b> • ${escapeHtml(x.AdminName||x.AdminID)} • ${escapeHtml(x.Module)}<br><span class="text-gray-400">${escapeHtml(x.Timestamp)} ${escapeHtml(x.RecordID||'')}</span></div>`).join('')||'ยังไม่มี Audit Log';}
-async function loadLineConfigStatus(){
+async function loadLineConfigStatus() {
     const el=document.getElementById('line-config-status');
     const urlEl=document.getElementById('line-webhook-url');
     if(urlEl)urlEl.value='https://tgeezbwbrovfyjbeykrj.supabase.co/functions/v1/line-webhook-gateway';
     if(!el)return;
+    el.className='mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-[11px] text-gray-600';
+    el.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังตรวจสอบสถานะ LINE OA...';
     const r=await run('getLineConfigStatus',{});
-    el.textContent=r.success
-      ? `Token: ${r.tokenConfigured?'พร้อม':'ยังไม่มี'} | Channel Secret: ${r.channelSecretConfigured?'พร้อม':'ยังไม่มี'} | Target: ${r.targetConfigured?'พร้อม '+(r.targetMasked||''):'ยังไม่มี'} | Webhook: ${r.webhookConfigured?'พร้อม':'ยังไม่พร้อม'} | แจ้งเตือน: ${r.enabled?'เปิด':'ปิด'} | Daily: ${r.dailyTrigger?'ตั้งแล้ว':'ยังไม่ตั้ง'}`
-      : (r.error||'ตรวจสอบไม่ได้');
+    if(!r.success){
+        el.className='mt-3 rounded-xl border border-rose-100 bg-rose-50 p-3 text-[11px] text-rose-700';
+        el.textContent=r.error||'ตรวจสอบสถานะ LINE OA ไม่สำเร็จ';
+        return;
+    }
+    const enabledEl=document.getElementById('line-enabled');
+    if(enabledEl)enabledEl.checked=!!r.enabled;
+    const targetText=!r.targetConfigured?'ยังไม่มี':(r.targetValid===false?'ไม่ถูกต้อง':`พร้อม ${escapeHtml(r.targetMasked||'')}`);
+    const dailyText=r.triggerAuthorizationRequired?'ต้องอนุญาตสิทธิ์':(r.dailyTrigger?'ตั้งแล้ว':'ยังไม่ตั้ง');
+    const badge=(ok,label)=>`<span class="inline-flex items-center px-2 py-1 rounded-full border ${ok?'bg-emerald-50 text-emerald-700 border-emerald-100':'bg-amber-50 text-amber-700 border-amber-100'}">${label}</span>`;
+    el.innerHTML=`<div class="flex flex-wrap gap-1.5">
+        ${badge(!!r.tokenConfigured,'Token: '+(r.tokenConfigured?'พร้อม':'ยังไม่มี'))}
+        ${badge(!!r.channelSecretConfigured,'Secret: '+(r.channelSecretConfigured?'พร้อม':'ยังไม่มี'))}
+        ${badge(!!r.targetConfigured && r.targetValid!==false,'Target: '+targetText)}
+        ${badge(!!r.webhookConfigured,'Webhook: '+(r.webhookConfigured?'พร้อม':'ยังไม่พร้อม'))}
+        ${badge(!!r.enabled,'แจ้งเตือน: '+(r.enabled?'เปิด':'ปิด'))}
+        ${badge(!!r.dailyTrigger,'Daily 08:00: '+dailyText)}
+    </div>
+    ${r.targetValid===false?'<div class="mt-2 text-rose-600"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Target ที่บันทึกไว้ไม่ใช่ LINE User/Group ID กรุณากรอกค่า U... หรือ C... แล้วกด “บันทึกการตั้งค่า LINE OA”</div>':''}
+    ${r.triggerAuthorizationRequired?'<div class="mt-2 text-amber-700"><i class="fa-solid fa-key mr-1"></i>การบันทึก LINE ใช้งานได้ตามปกติ แต่การตั้งสรุป 08:00 ต้องอนุญาตสิทธิ์ Script Trigger ใน Apps Script ก่อน 1 ครั้ง</div>':''}`;
 }
 
 async function saveLineConfigForm(){
@@ -1729,13 +1748,27 @@ async function saveLineConfigForm(){
     const targetId=(document.getElementById('line-target').value||'').trim();
     const channelSecret=(document.getElementById('line-channel-secret').value||'').trim();
     const enabled=document.getElementById('line-enabled').checked;
-    const r=await run('saveLineConfig',{channelAccessToken:token,targetId,channelSecret,enabled});
-    if(r.success){
-        document.getElementById('line-token').value='';
-        document.getElementById('line-channel-secret').value='';
-        Swal.fire('บันทึก LINE OA แล้ว','Token และ Channel Secret ถูกเก็บใน Apps Script Script Properties','success');
-        loadLineConfigStatus();
-    }else Swal.fire('ไม่สำเร็จ',r.error||'','error');
+    if(targetId && !/^[UCR][0-9a-fA-F]{32}$/.test(targetId)){
+        Swal.fire('Target ID ไม่ถูกต้อง','LINE Target ID ต้องขึ้นต้นด้วย U, C หรือ R และตามด้วยรหัส 32 ตัว หากยังไม่มี ID ให้เปิด Webhook แล้วส่งคำว่า “ไอดี” หา LINE OA','warning');
+        return;
+    }
+    const btn=document.getElementById('btn-line-save');
+    const oldHtml=btn?btn.innerHTML:'';
+    if(btn){btn.disabled=true;btn.classList.add('opacity-60','cursor-not-allowed');btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';}
+    try{
+        const r=await run('saveLineConfig',{channelAccessToken:token,targetId,channelSecret,enabled});
+        if(r.success){
+            document.getElementById('line-token').value='';
+            document.getElementById('line-channel-secret').value='';
+            document.getElementById('line-target').value='';
+            await Swal.fire('บันทึกการตั้งค่าแล้ว','Token และ Channel Secret ถูกเก็บใน Apps Script Script Properties เรียบร้อย','success');
+            await loadLineConfigStatus();
+        }else{
+            Swal.fire('บันทึกไม่สำเร็จ',r.error||'เกิดข้อผิดพลาด','error');
+        }
+    }finally{
+        if(btn){btn.disabled=false;btn.classList.remove('opacity-60','cursor-not-allowed');btn.innerHTML=oldHtml;}
+    }
 }
 
 async function copyLineWebhookUrl(){
@@ -1746,7 +1779,25 @@ async function copyLineWebhookUrl(){
 }
 
 async function testLineNotification(){const r=await run('testLineNotification',{});Swal.fire(r.success?'ส่งทดสอบสำเร็จ':'ส่งไม่สำเร็จ',r.error||'ตรวจสอบ LINE OA ได้แล้ว',r.success?'success':'error');}
-async function setupLineDailyTrigger(){const r=await run('setupLineDailyTrigger',{});Swal.fire(r.success?'ตั้งเวลาแล้ว':'ไม่สำเร็จ',r.message||r.error||'',r.success?'success':'error');loadLineConfigStatus();}
+async function setupLineDailyTrigger(){
+    const r=await run('setupLineDailyTrigger',{});
+    if(r.success){
+        await Swal.fire('ตั้งเวลาแล้ว',r.message||'ตั้งสรุปทุกวัน 08:00 เรียบร้อย','success');
+        await loadLineConfigStatus();
+        return;
+    }
+    if(r.authorizationRequired){
+        await Swal.fire({
+            title:'ต้องอนุญาตสิทธิ์ Trigger 1 ครั้ง',
+            html:'<div class="text-left text-xs leading-6">เปิด <b>Apps Script</b> → เลือกฟังก์ชัน <code>authorizeLineDailyTrigger</code> → กด <b>Run</b> → อนุญาตสิทธิ์ Google ให้เรียบร้อย<br><br>จากนั้นกลับมาหน้านี้แล้วกด <b>ตั้งสรุปทุกวัน 08:00</b> อีกครั้ง</div>',
+            icon:'info',
+            confirmButtonText:'รับทราบ'
+        });
+    }else{
+        Swal.fire('ตั้งเวลาไม่สำเร็จ',r.error||'เกิดข้อผิดพลาด','error');
+    }
+    await loadLineConfigStatus();
+}
 
 async function loadAdminUsersSection() {
     const list = document.getElementById('admin-users-list');
