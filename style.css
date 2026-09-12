@@ -1,0 +1,344 @@
+/* ===================================================================
+   ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ — Stylesheet
+   =================================================================== */
+
+:root{
+  --brand-indigo:#4f46e5;
+  --brand-indigo-dark:#3730a3;
+  --brand-teal:#0d9488;
+  --brand-amber:#d97706;
+  --brand-rose:#e11d48;
+  --surface:#f8fafc;
+  --sidebar-w:17rem;
+  --sidebar-w-collapsed:5rem;
+
+  /* พื้นผิวโหมดสว่าง (ค่าเริ่มต้น) */
+  --app-bg:#f8fafc;
+  --app-surface:#ffffff;
+  --app-surface-2:#f8fafc;
+  --app-border:#f1f5f9;
+  --app-text-strong:#1e293b;
+  --app-text:#475569;
+  --app-text-soft:#94a3b8;
+}
+
+html[data-theme="dark"]{
+  --app-bg:#0b1220;
+  --app-surface:#1b2740;
+  --app-surface-2:#101828;
+  --app-border:#2f3d58;
+  --app-text-strong:#e2e8f0;
+  --app-text:#b6c2d4;
+  --app-text-soft:#7487a3;
+}
+
+html{ scroll-behavior:smooth; -webkit-tap-highlight-color:transparent; }
+body.font-sarabun{ font-family:'Sarabun', sans-serif; -webkit-tap-highlight-color:transparent; }
+
+/* ---------- เพิ่มขนาดตัวอักษรโดยรวมของทั้งเว็บให้อ่านง่ายและชัดเจนขึ้น ---------- */
+/* ระบบเดิมใช้ตัวอักษรเล็กมาก (text-xs และเล็กกว่า) เกือบทั้งเว็บ จึงปรับขนาดจริงของคลาสเหล่านี้ให้ใหญ่ขึ้นทั่วทั้งระบบ */
+.text-\[9px\]{ font-size:10px !important; }
+.text-\[10px\]{ font-size:11.5px !important; }
+.text-\[11px\]{ font-size:12.5px !important; }
+.text-xs{ font-size:13.5px !important; line-height:1.55 !important; }
+.text-sm{ font-size:15px !important; line-height:1.6 !important; }
+.text-base{ font-size:16.5px !important; }
+.text-lg{ font-size:19px !important; }
+.text-xl{ font-size:21px !important; }
+.text-2xl{ font-size:25px !important; }
+.text-3xl{ font-size:31px !important; }
+
+::selection{ background:rgba(79,70,229,.25); color:inherit; }
+
+/* ---------- scrollbars ---------- */
+::-webkit-scrollbar{ width:8px; height:8px; }
+::-webkit-scrollbar-track{ background:transparent; }
+::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:99px; }
+::-webkit-scrollbar-thumb:hover{ background:#94a3b8; }
+
+/* ---------- sidebar ---------- */
+#sidebar{
+  width:var(--sidebar-w);
+  box-shadow:1px 0 0 rgba(15,23,42,.04);
+}
+#sidebar.collapsed{ width:var(--sidebar-w-collapsed); }
+#sidebar.collapsed .agency-name-block,
+#sidebar.collapsed .menu-text{
+  opacity:0; width:0; overflow:hidden; margin:0; pointer-events:none;
+}
+#sidebar.collapsed nav button,
+#sidebar.collapsed .p-3.border-t button{ justify-content:center; }
+#sidebar.collapsed #minimize-icon{ transform:rotate(180deg); }
+
+#main-wrapper.sidebar-collapsed{ }
+@media (min-width:768px){
+  #main-wrapper.md\:pl-64{ padding-left:var(--sidebar-w); transition:padding-left .3s ease; }
+  #main-wrapper.md\:pl-64.sidebar-collapsed{ padding-left:var(--sidebar-w-collapsed); }
+}
+
+.menu-item{
+  color:#64748b;
+  position:relative;
+  border:1px solid transparent;
+}
+.menu-item i{ transition:transform .2s ease; }
+.menu-item:hover{
+  background:#f8fafc;
+  color:#334155;
+}
+.menu-item:hover i{ transform:translateY(-1px) scale(1.05); }
+.menu-item.active{
+  background:linear-gradient(135deg,#eef2ff 0%,#f5f3ff 100%);
+  color:var(--brand-indigo-dark);
+  font-weight:700;
+  border-color:rgba(79,70,229,.12);
+  box-shadow:inset 0 0 0 1px rgba(79,70,229,.06);
+}
+.menu-item.active::before{
+  content:'';
+  position:absolute; left:-0.75rem; top:50%; transform:translateY(-50%);
+  width:4px; height:22px; border-radius:99px;
+  background:var(--brand-indigo);
+}
+
+.menu-badge{
+  margin-left:auto;
+  font-size:10px;
+  font-weight:800;
+  padding:1px 7px;
+  border-radius:99px;
+  background:#fecdd3;
+  color:#9f1239;
+  line-height:1.5;
+}
+#sidebar.collapsed .menu-badge{ display:none; }
+
+/* ---------- generic polish ---------- */
+.table-report thead th{ letter-spacing:.03em; }
+.table-report tbody tr{ transition:background-color .12s ease; }
+
+.stat-card{
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+.stat-card:hover{ transform:translateY(-2px); box-shadow:0 10px 24px -12px rgba(15,23,42,.18); }
+
+/* ---------- หมวดหมู่อุปกรณ์: การ์ดพาสเทล + วงไอคอนสีเข้มสดโดดเด่น ---------- */
+.cat-card{ position:relative; }
+.cat-badge{
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease;
+  box-shadow:0 6px 16px -6px rgba(15,23,42,.35);
+}
+.cat-card:hover .cat-badge{ transform:scale(1.08) rotate(-4deg); }
+
+/* ---------- ปุ่ม CTA หลักที่ต้องการความโดดเด่นเป็นพิเศษ (แทนการใช้ shadow-{color} ของ Tailwind v3 ที่ระบบนี้ไม่มี) ---------- */
+.btn-cta-teal{ box-shadow:0 8px 20px -6px rgba(13,148,136,.45); }
+.btn-cta-teal:hover{ box-shadow:0 10px 24px -6px rgba(13,148,136,.55); background-color:#0f766e !important; }
+.btn-cta-teal:active{ background-color:#115e59 !important; }
+
+.btn-cta-purple{ box-shadow:0 8px 20px -6px rgba(126,34,206,.45); }
+.btn-cta-purple:hover{ box-shadow:0 10px 24px -6px rgba(126,34,206,.55); background-color:#6b21a8 !important; }
+.btn-cta-purple:active{ background-color:#581c87 !important; }
+
+.btn-cta-indigo{ box-shadow:0 8px 20px -6px rgba(79,70,229,.45); }
+.btn-cta-indigo:hover{ box-shadow:0 10px 24px -6px rgba(79,70,229,.55); background-color:#4338ca !important; }
+.btn-cta-indigo:active{ background-color:#3730a3 !important; }
+
+.btn-cta-amber{ box-shadow:0 8px 20px -6px rgba(217,119,6,.45); }
+.btn-cta-amber:hover{ box-shadow:0 10px 24px -6px rgba(217,119,6,.55); background-color:#b45309 !important; }
+.btn-cta-amber:active{ background-color:#92400e !important; }
+
+/* ---------- theme toggle ---------- */
+.theme-toggle-btn i{ transition:transform .35s cubic-bezier(.34,1.56,.64,1); }
+.theme-toggle-btn:hover i{ transform:rotate(20deg) scale(1.1); }
+
+/* ---------- ป้องกันการลากเลือกข้อความบนปุ่ม/เมนู (ทำให้เกิดแถบไฮไลต์สีทับปุ่มตอนคลิก/แตะค้างบนมือถือ) ---------- */
+button, .menu-item, [onclick], a.button-like{
+  user-select:none;
+  -webkit-user-select:none;
+  -moz-user-select:none;
+  -ms-user-select:none;
+  -webkit-touch-callout:none;      /* ปิดเมนู callout ค้างแตะบน iOS ที่ทำให้ขึ้นแถบเลือกคำสีฟ้าทับปุ่ม */
+  -webkit-tap-highlight-color:transparent;  /* ปิดแถบไฮไลต์สีทึบเวลาแตะปุ่มบนมือถือ (ต้นเหตุปุ่มดูเหมือนสีทับกันมองไม่เห็น) */
+  tap-highlight-color:transparent;
+  touch-action:manipulation;        /* ลดดีเลย์และการแตะซ้อนที่ทำให้เกิดการเลือกข้อความโดยไม่ตั้งใจ */
+  outline:none;
+}
+button:focus-visible, .menu-item:focus-visible{
+  outline:2px solid rgba(79,70,229,.5);
+  outline-offset:2px;
+}
+
+/* ---------- รูปภาพหลักฐานแนบในฟอร์มยืม ---------- */
+.photo-preview-item{
+  position:relative;
+  aspect-ratio:1/1;
+  border-radius:.75rem;
+  overflow:hidden;
+  border:1px solid #e2e8f0;
+  background:#f8fafc;
+}
+.photo-preview-item img{ width:100%; height:100%; object-fit:cover; display:block; }
+.photo-preview-remove{
+  position:absolute; top:4px; right:4px;
+  width:20px; height:20px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(15,23,42,.75); color:#fff;
+  border-radius:99px; font-size:11px; line-height:1;
+  cursor:pointer; transition:background .15s ease;
+}
+.photo-preview-remove:hover{ background:#e11d48; }
+.gallery-photo-item{
+  border-radius:.75rem; overflow:hidden; border:1px solid #e2e8f0; aspect-ratio:1/1;
+}
+.gallery-photo-item img{ width:100%; height:100%; object-fit:cover; display:block; cursor:zoom-in; }
+
+/* ---------- signature element: usage allocation bar ---------- */
+.usage-bar-track{
+  display:flex;
+  width:100%;
+  height:14px;
+  border-radius:99px;
+  overflow:hidden;
+  background:#e2e8f0;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.04);
+}
+.usage-bar-seg{
+  height:100%;
+  transition:width .6s cubic-bezier(.16,1,.3,1);
+}
+.usage-bar-seg.seg-available{ background:linear-gradient(90deg,#34d399,#10b981); }
+.usage-bar-seg.seg-borrowed{ background:linear-gradient(90deg,#fb7185,#e11d48); }
+.usage-bar-seg.seg-overdue{ background:linear-gradient(90deg,#f59e0b,#b45309); }
+
+.usage-legend-dot{
+  display:inline-block; width:9px; height:9px; border-radius:99px; margin-right:6px;
+}
+
+/* ---------- modals ---------- */
+.modal-backdrop{
+  position:fixed; inset:0; z-index:50;
+  background:rgba(15,23,42,.55);
+  backdrop-filter:blur(2px);
+  display:none;
+  align-items:center; justify-content:center;
+}
+.modal-backdrop.active{ display:flex; }
+/* การ์ดของโมดัลทุกอันต้องมีขอบเขตที่มองเห็นชัดเจนเสมอ ไม่ว่าจะโหมดสว่างหรือมืด ป้องกันไม่ให้ดูเหมือน "ล้นขอบ"/ไม่มีขอบเขต */
+.modal-backdrop > div{
+  box-shadow:0 25px 60px -12px rgba(0,0,0,.45), 0 0 0 1px rgba(15,23,42,.06);
+}
+
+@keyframes scaleIn{
+  from{ opacity:0; transform:scale(.95) translateY(6px); }
+  to{ opacity:1; transform:scale(1) translateY(0); }
+}
+.animate-scale{ animation:scaleIn .18s ease-out; }
+
+/* ---------- badges / status pill hover polish ---------- */
+.badge-pill{ display:inline-flex; align-items:center; gap:4px; }
+
+/* ---------- print ---------- */
+@media print{
+  body *{ visibility:hidden; }
+  #print-section, #print-section *{ visibility:visible; }
+  #print-tracking-section, #print-tracking-section *{ visibility:visible; }
+  body.print-mode-receipt #print-section{ display:block !important; position:absolute; top:0; left:0; width:100%; }
+  body.print-mode-tracking #print-tracking-section{ display:block !important; position:absolute; top:0; left:0; width:100%; }
+}
+
+/* ---------- misc utility ---------- */
+.fade-in{ animation:fadeIn .25s ease-out; }
+@keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
+
+.empty-state{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:.5rem; padding:2.5rem 1rem; color:#94a3b8;
+}
+
+/* ===================================================================
+   🌙 โหมดมืด (Dark Mode) — ครอบคลุมโครงสร้างหลักและคลาส Tailwind ที่ใช้ทั่วระบบ
+   =================================================================== */
+html[data-theme="dark"] body{ background:var(--app-bg); color:var(--app-text); }
+html[data-theme="dark"] .bg-slate-50{ background-color:var(--app-bg) !important; }
+html[data-theme="dark"] .bg-gray-50,
+html[data-theme="dark"] .bg-gray-50\/50,
+html[data-theme="dark"] .bg-gray-50\/70{ background-color:var(--app-surface-2) !important; }
+html[data-theme="dark"] .bg-gray-100{ background-color:#1c2942 !important; }
+html[data-theme="dark"] .bg-gray-200{ background-color:#2a3854 !important; }
+html[data-theme="dark"] .bg-white{ background-color:var(--app-surface) !important; }
+
+html[data-theme="dark"] .border-gray-50,
+html[data-theme="dark"] .border-gray-100,
+html[data-theme="dark"] .border-gray-200,
+html[data-theme="dark"] .border-t,
+html[data-theme="dark"] .border-b,
+html[data-theme="dark"] .border{ border-color:var(--app-border) !important; }
+
+html[data-theme="dark"] .text-gray-900,
+html[data-theme="dark"] .text-gray-800,
+html[data-theme="dark"] .text-slate-800{ color:var(--app-text-strong) !important; }
+html[data-theme="dark"] .text-gray-700,
+html[data-theme="dark"] .text-gray-600{ color:var(--app-text) !important; }
+html[data-theme="dark"] .text-gray-500,
+html[data-theme="dark"] .text-gray-400{ color:var(--app-text-soft) !important; }
+
+html[data-theme="dark"] #sidebar{ background:var(--app-surface); border-color:var(--app-border); box-shadow:1px 0 0 rgba(0,0,0,.2); }
+html[data-theme="dark"] #sidebar .bg-indigo-50\/30{ background-color:rgba(99,102,241,.12) !important; }
+html[data-theme="dark"] header.bg-white{ background:var(--app-surface); }
+html[data-theme="dark"] .menu-item.active{
+  background:linear-gradient(135deg, rgba(99,102,241,.18) 0%, rgba(139,92,246,.14) 100%);
+  color:#c7d2fe;
+}
+html[data-theme="dark"] .menu-item:hover{ background:rgba(148,163,184,.08); color:var(--app-text-strong); }
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea{
+  background-color:var(--app-surface-2) !important;
+  border-color:var(--app-border) !important;
+  color:var(--app-text-strong) !important;
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder{ color:var(--app-text-soft); }
+html[data-theme="dark"] input[readonly]{ background-color:#0d1524 !important; color:var(--app-text-soft) !important; }
+
+html[data-theme="dark"] table thead{ background:var(--app-surface-2) !important; }
+html[data-theme="dark"] .table-report tbody tr:hover{ background-color:rgba(148,163,184,.06) !important; }
+html[data-theme="dark"] .divide-gray-100 > :not([hidden]) ~ :not([hidden]){ border-color:var(--app-border) !important; }
+
+html[data-theme="dark"] .modal-backdrop{ background:rgba(0,0,0,.7); }
+html[data-theme="dark"] .modal-backdrop > div{
+  background:var(--app-surface);
+  border:1px solid var(--app-border) !important;
+  box-shadow:0 25px 60px -12px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04);
+}
+
+/* การ์ดสถิติ / KPI / กลุ่มพาสเทล ปรับความเข้มให้อ่านง่ายบนพื้นมืดแต่ยังคงเฉดสีเดิมไว้ */
+html[data-theme="dark"] [class*="bg-blue-50"]{ background-color:rgba(59,130,246,.14) !important; }
+html[data-theme="dark"] [class*="bg-indigo-50"]{ background-color:rgba(99,102,241,.14) !important; }
+html[data-theme="dark"] [class*="bg-emerald-50"]{ background-color:rgba(16,185,129,.14) !important; }
+html[data-theme="dark"] [class*="bg-teal-50"]{ background-color:rgba(20,184,166,.14) !important; }
+html[data-theme="dark"] [class*="bg-rose-50"]{ background-color:rgba(244,63,94,.14) !important; }
+html[data-theme="dark"] [class*="bg-amber-50"]{ background-color:rgba(245,158,11,.14) !important; }
+html[data-theme="dark"] [class*="bg-purple-50"]{ background-color:rgba(168,85,247,.14) !important; }
+html[data-theme="dark"] [class*="bg-violet-50"]{ background-color:rgba(139,92,246,.14) !important; }
+html[data-theme="dark"] [class*="bg-fuchsia-50"]{ background-color:rgba(217,70,239,.14) !important; }
+html[data-theme="dark"] [class*="bg-sky-50"]{ background-color:rgba(14,165,233,.14) !important; }
+html[data-theme="dark"] [class*="bg-cyan-50"]{ background-color:rgba(6,182,212,.14) !important; }
+html[data-theme="dark"] [class*="bg-red-50"]{ background-color:rgba(239,68,68,.14) !important; }
+html[data-theme="dark"] [class*="bg-orange-50"]{ background-color:rgba(249,115,22,.14) !important; }
+html[data-theme="dark"] [class*="bg-slate-100"]{ background-color:var(--app-surface-2) !important; }
+html[data-theme="dark"] [class*="bg-emerald-100"],
+html[data-theme="dark"] [class*="bg-indigo-100"],
+html[data-theme="dark"] [class*="bg-rose-100"]{ background-color:rgba(148,163,184,.16) !important; }
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb{ background:#334155; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover{ background:#475569; }
+
+/* ปุ่มพิมพ์เอกสาร/ใบสัญญายังคงต้องแสดงผลโทนสว่างเสมอ ไม่ว่าจะเปิดโหมดมืดอยู่หรือไม่ */
+@media print{
+  html[data-theme="dark"] #print-section,
+  html[data-theme="dark"] #print-tracking-section{
+    background:#fff !important; color:#000 !important;
+  }
+}
