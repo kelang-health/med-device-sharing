@@ -1835,6 +1835,15 @@ async function testLineNotification(){
         });
         return;
     }
+    if(!r.success && (r.authorizationRequired || /UrlFetchApp\.fetch|script\.external_request|permission to call UrlFetchApp|authorization is required/i.test(err))){
+        await Swal.fire({
+            title:'ต้องอนุญาตสิทธิ์ LINE API ก่อน',
+            html:'<div class="text-left text-sm leading-7">เปิด <b>Apps Script Editor</b> → เลือกฟังก์ชัน <b>authorizeLineServices</b> → กด <b>Run</b> → อนุญาตสิทธิ์ Google ให้ครบ แล้วกลับมาหน้านี้กด <b>ทดสอบส่ง</b> อีกครั้ง</div>',
+            icon:'warning',
+            confirmButtonText:'เข้าใจแล้ว'
+        });
+        return;
+    }
     if(!r.success && err.includes('GET ใช้ได้เฉพาะ action=health')){
         await Swal.fire({
             title:'พบไฟล์หน้าเว็บรุ่นเก่าใน Cache',
