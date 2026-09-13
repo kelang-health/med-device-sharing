@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=4.1.0" />
+    <link rel="stylesheet" href="style.css?v=4.1.1" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -173,14 +173,16 @@
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <h4 class="text-sm font-bold text-gray-700 flex items-center gap-1.5"><i class="fa-solid fa-scale-balanced text-indigo-500"></i> สัดส่วนสถานะการใช้งานครุภัณฑ์ (ยืม-คืน หักลบ)</h4>
                         <div class="flex items-center gap-3 text-[11px] font-semibold text-gray-500">
-                            <span><span class="usage-legend-dot bg-emerald-500"></span>ว่าง <span id="usage-legend-avail">0</span></span>
+                            <span><span class="usage-legend-dot bg-emerald-500"></span>พร้อมใช้ <span id="usage-legend-avail">0</span></span>
                             <span><span class="usage-legend-dot bg-rose-600"></span>ถูกยืม <span id="usage-legend-borrow">0</span></span>
+                            <span><span class="usage-legend-dot bg-slate-400"></span>ไม่พร้อมใช้ <span id="usage-legend-unavailable">0</span></span>
                             <span><span class="usage-legend-dot bg-amber-600"></span>เกินกำหนด <span id="usage-legend-overdue">0</span></span>
                         </div>
                     </div>
                     <div class="usage-bar-track" id="usage-bar-track">
                         <div class="usage-bar-seg seg-available" id="usage-seg-available" style="width:100%"></div>
                         <div class="usage-bar-seg seg-borrowed" id="usage-seg-borrowed" style="width:0%"></div>
+                        <div class="usage-bar-seg seg-unavailable" id="usage-seg-unavailable" style="width:0%"></div>
                         <div class="usage-bar-seg seg-overdue" id="usage-seg-overdue" style="width:0%"></div>
                     </div>
                     <p id="usage-bar-caption" class="text-[11px] text-gray-400">กำลังคำนวณสัดส่วนสถานะครุภัณฑ์...</p>
@@ -563,7 +565,7 @@
                     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                         <div>
                             <h4 class="font-bold text-sm text-gray-800 flex items-center gap-2"><i class="fa-solid fa-database text-cyan-600"></i> สำรองข้อมูลและบำรุงรักษาระบบ</h4>
-                            <p class="text-[11px] text-gray-400 mt-1">Backup Spreadsheet, Archive Audit Log และตรวจไฟล์รูปที่ไม่มีรายการอ้างอิง โดยงานลบต้องยืนยันก่อนทุกครั้ง</p>
+                            <p class="text-[11px] text-gray-400 mt-1">Backup Spreadsheet + รูปหลักฐาน แยกโฟลเดอร์สำรอง, Archive Audit Log แบบปลอดภัย และตรวจสิทธิ์รูปหลักฐาน โดยงานลบต้องยืนยันก่อนทุกครั้ง</p>
                         </div>
                         <button type="button" onclick="loadMaintenanceStatus()" class="bg-cyan-50 hover:bg-cyan-100 text-cyan-700 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap"><i class="fa-solid fa-rotate mr-1"></i> รีเฟรชสถานะ</button>
                     </div>
@@ -590,6 +592,7 @@
                         <button type="button" onclick="createBackupNow()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> สำรองข้อมูลทันที</button>
                         <button type="button" onclick="archiveOldAuditLogUi()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 px-4 py-2.5 rounded-xl text-xs font-bold"><i class="fa-solid fa-box-archive mr-1"></i> Archive Audit Log เก่า</button>
                         <button type="button" onclick="scanOrphanFilesUi()" class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-100 px-4 py-2.5 rounded-xl text-xs font-bold"><i class="fa-solid fa-magnifying-glass mr-1"></i> ตรวจไฟล์รูป orphan</button>
+                        <button type="button" onclick="secureBorrowImagesUi()" class="bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border border-cyan-100 px-4 py-2.5 rounded-xl text-xs font-bold"><i class="fa-solid fa-lock mr-1"></i> ปิด Public Link รูปหลักฐาน</button>
                         <button type="button" onclick="cleanupOrphanFilesUi()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-100 px-4 py-2.5 rounded-xl text-xs font-bold"><i class="fa-solid fa-trash-can mr-1"></i> ล้างไฟล์ orphan</button>
                         <button type="button" onclick="cleanupArchiveLogsUi()" class="sm:col-span-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold"><i class="fa-solid fa-broom mr-1"></i> ล้าง Audit Archive อายุเกิน 3 ปี</button>
                     </div>
@@ -808,7 +811,7 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.1.0 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.1.1 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
@@ -1038,6 +1041,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=4.1.0"></script>
+    <script src="script.js?v=4.1.1"></script>
 </body>
 </html>
