@@ -8,7 +8,10 @@ def rep(a,b,label,count=1):
 
 # safe JS argument for inline handlers that still exist in legacy UI
 anchor="function safeCsvCell(value) {"
-helper="""function escapeJsSingleQuoted(value) {\n    return String(value ?? '').replace(/\\\\/g, '\\\\\\\\').replace(/'/g, \\\"\\\\'\\\").replace(/\\r/g, '\\\\r').replace(/\\n/g, '\\\\n').replace(/</g, '\\\\x3C').replace(/>/g, '\\\\x3E');\n}\n"""
+helper=r'''function escapeJsSingleQuoted(value) {
+    return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/</g, '\\x3C').replace(/>/g, '\\x3E');
+}
+'''
 if 'function escapeJsSingleQuoted' not in s:s=s.replace(anchor,helper+anchor,1)
 
 # Borrow admin buttons / tracking buttons
