@@ -17,6 +17,15 @@ jobs:
           ref: work/v3.9.0-management-analytics
       - name: Patch frontend
         run: python tools/apply_v390.py
+      - name: Normalize generated analytics menu whitespace
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('<i class="fa-solid fa-chart-line text-lg text-violet-500 w-6 text-center"></i> \n','<i class="fa-solid fa-chart-line text-lg text-violet-500 w-6 text-center"></i>\n',1)
+          p.write_text(s,encoding='utf-8')
+          PY
       - name: Validate JavaScript
         run: node --check script.js
       - name: Validate diff
