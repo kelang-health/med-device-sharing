@@ -58,6 +58,9 @@ function clearAuthSession() {
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
+function escapeJsSingleQuoted(value) {
+    return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/</g, '\\x3C').replace(/>/g, '\\x3E');
+}
 function safeCsvCell(value) {
     let cell = value === null || value === undefined ? '' : String(value);
     if (/^[=+@-]/.test(cell)) cell = "'" + cell;
@@ -639,17 +642,17 @@ function renderAdminBorrowContainer() {
             const actionButtons = `
                 <div class="flex items-center justify-center gap-1.5">
                     ${photoCount > 0 ?
-                        `<button onclick="viewBorrowImages('${entryId}')" class="relative bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="ดูรูปภาพหลักฐานแนบ (${photoCount} รูป)"><i class="fa-solid fa-camera text-xs"></i><span class="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full">${photoCount}</span></button>` :
+                        `<button onclick="viewBorrowImages('${escapeJsSingleQuoted(entryId)}')" class="relative bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="ดูรูปภาพหลักฐานแนบ (${photoCount} รูป)"><i class="fa-solid fa-camera text-xs"></i><span class="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full">${photoCount}</span></button>` :
                         `<span class="bg-gray-50 text-gray-300 p-1.5 rounded-lg" title="ไม่มีรูปภาพหลักฐานแนบ"><i class="fa-solid fa-camera text-xs"></i></span>`
                     }
-                    <button onclick="printLoanReceipt('${entryId}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 p-1.5 rounded-lg transition" title="พิมพ์ใบอนุมัติสัญญาค้ำประกันคลัง"><i class="fa-solid fa-print text-xs"></i></button>
+                    <button onclick="printLoanReceipt('${escapeJsSingleQuoted(entryId)}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 p-1.5 rounded-lg transition" title="พิมพ์ใบอนุมัติสัญญาค้ำประกันคลัง"><i class="fa-solid fa-print text-xs"></i></button>
                     ${(status === 'Borrowed' || status === 'ยืม') ?
-                        `<button onclick="editBorrowRecord('${entryId}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="แก้ไขรายการนี้ (กรณีบันทึกผิด)"><i class="fa-solid fa-pen text-xs"></i></button>` : ''
+                        `<button onclick="editBorrowRecord('${escapeJsSingleQuoted(entryId)}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="แก้ไขรายการนี้ (กรณีบันทึกผิด)"><i class="fa-solid fa-pen text-xs"></i></button>` : ''
                     }
                     ${(status === 'Borrowed' || status === 'ยืม') ?
-                        `<button onclick="processReturnItem('${entryId}')" class="bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold text-[11px] px-2.5 py-1 rounded-lg transition">คืน</button>` : ''
+                        `<button onclick="processReturnItem('${escapeJsSingleQuoted(entryId)}')" class="bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold text-[11px] px-2.5 py-1 rounded-lg transition">คืน</button>` : ''
                     }
-                    <button onclick="deleteBorrowRecord('${entryId}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    <button onclick="deleteBorrowRecord('${escapeJsSingleQuoted(entryId)}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
                 </div>
             `;
 
@@ -819,7 +822,7 @@ function buildTrackingRows(rows, forPrint = false) {
         const actionCell = forPrint ? '' : `
             <td class="border border-gray-200 p-2 print:hidden">
                 ${overdue
-                    ? `<button onclick="openExtendBorrowPrompt('${entryId}')" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-sm transition whitespace-nowrap"><i class="fa-solid fa-calendar-plus mr-1"></i>ยืมต่อ</button>`
+                    ? `<button onclick="openExtendBorrowPrompt('${escapeJsSingleQuoted(entryId)}')" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-sm transition whitespace-nowrap"><i class="fa-solid fa-calendar-plus mr-1"></i>ยืมต่อ</button>`
                     : '<span class="text-gray-300">—</span>'}
             </td>`;
 
@@ -918,8 +921,8 @@ async function openExtendBorrowPrompt(entryId) {
         html: `
             <div class="text-left text-xs space-y-3">
                 <div class="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                    <div><b>อุปกรณ์:</b> ${eqId}</div>
-                    <div><b>ผู้ยืม/ผู้ป่วย:</b> ${patient}</div>
+                    <div><b>อุปกรณ์:</b> ${escapeHtml(eqId)}</div>
+                    <div><b>ผู้ยืม/ผู้ป่วย:</b> ${escapeHtml(patient)}</div>
                     <div><b>กำหนดเดิม:</b> <span class="text-rose-600 font-bold">${dueText}</span></div>
                     <div><b>เคยยืมต่อ:</b> ${getExtensionCount(row)} ครั้ง</div>
                 </div>
@@ -1061,8 +1064,8 @@ function renderEquipmentTable() {
                 <td class="p-3">${statusBadge}</td>
                 <td class="p-3 print:hidden">
                     <div class="flex items-center gap-1">
-                        <button onclick="openEquipmentLifecyclePrompt('${escapeHtml(item.EquipmentID || item[0])}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="เปลี่ยนสถานะ/ซ่อม"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>
-                        <button onclick="deleteEquipmentRecord('${escapeHtml(item.EquipmentID || item[0])}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition" title="ปิดใช้งาน"><i class="fa-solid fa-ban text-xs"></i></button>
+                        <button onclick="openEquipmentLifecyclePrompt('${escapeJsSingleQuoted(item.EquipmentID || item[0])}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="เปลี่ยนสถานะ/ซ่อม"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>
+                        <button onclick="deleteEquipmentRecord('${escapeJsSingleQuoted(item.EquipmentID || item[0])}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition" title="ปิดใช้งาน"><i class="fa-solid fa-ban text-xs"></i></button>
                     </div>
                 </td>
             `;
@@ -1217,7 +1220,7 @@ function initLeafletGISMap() {
 
                 const popupContent = `
                     <div style="font-family:'Sarabun'; font-size:12px;">
-                        <strong style="color:#4f46e5;">📌 รหัสพัสดุ: ${item.EquipmentID || item[5]}</strong><br>
+                        <strong style="color:#4f46e5;">📌 รหัสพัสดุ: ${escapeHtml(item.EquipmentID || item[5] || '-')}</strong><br>
                         <b>ผู้ป่วย:</b> ${escapeHtml(item.PatientName || item[13] || item[1] || '-')}<br>
                         <b>ชุมชน:</b> ${escapeHtml(commName)}<br>
                         <b>โทร:</b> ${escapeHtml(item.Phone || item[12] || '-')}
@@ -1273,7 +1276,7 @@ async function loadManagementAnalytics(){
     const r=await run('getManagementAnalytics',{period});
     if(!r||!r.success){
         const msg=String((r&&r.error)||'ไม่สามารถโหลด Management Analytics ได้');
-        const box=document.getElementById('analytics-recommendations');if(box)box.innerHTML=`<div class="text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v3.9.0 ก่อน':''}</div>`;
+        const box=document.getElementById('analytics-recommendations');if(box)box.innerHTML=`<div class="text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.1.1 ก่อน':''}</div>`;
         return;
     }
     state.managementAnalytics=r;
@@ -1353,7 +1356,7 @@ async function loadProcurementPlan(){
     const r=await run('getProcurementPlan',{period});
     if(!r||!r.success){
         const msg=String((r&&r.error)||'ไม่สามารถโหลดแผนจัดหาได้');
-        if(body)body.innerHTML=`<tr><td colspan="9" class="p-6 text-center text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.0.0 ก่อน':''}</td></tr>`;
+        if(body)body.innerHTML=`<tr><td colspan="9" class="p-6 text-center text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.1.1 ก่อน':''}</td></tr>`;
         return;
     }
     state.procurementPlan=r;
@@ -1833,7 +1836,7 @@ async function loadMaintenanceStatus(){
 }
 
 async function createBackupNow(){
-    const ok=await Swal.fire({title:'สำรองข้อมูลทันที?',text:'ระบบจะทำสำเนา Spreadsheet ไปยังโฟลเดอร์ System Backups โดยไม่แก้ข้อมูลต้นฉบับ',icon:'question',showCancelButton:true,confirmButtonText:'สำรองข้อมูล',cancelButtonText:'ยกเลิก'});if(!ok.isConfirmed)return;
+    const ok=await Swal.fire({title:'สำรองข้อมูลทันที?',text:'ระบบจะสร้างชุดสำรองแยก ประกอบด้วย Spreadsheet + รูปหลักฐาน + config snapshot ที่ตัด credential ออก โดยไม่แก้ข้อมูลต้นฉบับ',icon:'question',showCancelButton:true,confirmButtonText:'สำรองข้อมูล',cancelButtonText:'ยกเลิก'});if(!ok.isConfirmed)return;
     Swal.fire({title:'กำลังสำรองข้อมูล...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
     const r=await run('createSystemBackup',{});if(r&&r.success){await Swal.fire('สำรองสำเร็จ',`สร้าง ${r.fileName||'ชุดสำรอง'} เรียบร้อย • รูปหลักฐาน ${Number(r.imageCopied||0)} ไฟล์${r.imageFailed?' • คัดลอกรูปไม่สำเร็จ '+r.imageFailed+' ไฟล์':''}`,'success');await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('สำรองไม่สำเร็จ',(r&&r.error)||'เกิดข้อผิดพลาด','error');
 }
@@ -2028,7 +2031,7 @@ function renderAdminUsersTable(users) {
     list.innerHTML=users.map(u=>{
       const isMe=String(u.adminId).toLowerCase()===String(me).toLowerCase();
       const status=u.active!==false?'เปิดใช้งาน':'ปิดใช้งาน';
-      return `<div class="flex items-center justify-between bg-gray-50 border rounded-xl px-3 py-2.5"><div><p class="font-bold">${escapeHtml(u.adminName)} <span class="text-[10px] text-indigo-600">${escapeHtml(u.role||'STAFF')}</span></p><p class="text-[11px] text-gray-400">${escapeHtml(u.adminId)} • ${status}</p></div><button ${isMe?'disabled':''} onclick="setAdminUserActivePrompt('${escapeHtml(u.adminId)}',${u.active===false?'true':'false'})" class="px-3 py-1.5 rounded-lg text-xs font-bold ${u.active===false?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}">${u.active===false?'เปิดใช้':'ปิดใช้'}</button></div>`;
+      return `<div class="flex items-center justify-between bg-gray-50 border rounded-xl px-3 py-2.5"><div><p class="font-bold">${escapeHtml(u.adminName)} <span class="text-[10px] text-indigo-600">${escapeHtml(u.role||'STAFF')}</span></p><p class="text-[11px] text-gray-400">${escapeHtml(u.adminId)} • ${status}</p></div><button ${isMe?'disabled':''} onclick="setAdminUserActivePrompt('${escapeJsSingleQuoted(u.adminId)}',${u.active===false?'true':'false'})" class="px-3 py-1.5 rounded-lg text-xs font-bold ${u.active===false?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}">${u.active===false?'เปิดใช้':'ปิดใช้'}</button></div>`;
     }).join('');
 }
 function setAdminUserActivePrompt(adminId,active){Swal.fire({title:active?'เปิดใช้งานบัญชี?':'ปิดใช้งานบัญชี?',icon:'question',showCancelButton:true,confirmButtonText:'ยืนยัน'}).then(async r=>{if(!r.isConfirmed)return;const res=await run('setAdminUserActive',{adminId,active});if(res.success){Swal.fire('สำเร็จ','','success');loadAdminUsersSection();}else Swal.fire('ไม่สำเร็จ',res.error||'','error');});}
