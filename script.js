@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.0.0 Procurement Planning & Accessibility)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.1.0 Backup & Log Maintenance)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -1238,6 +1238,8 @@ function switchTab(tabId) {
         loadAdminUsersSection();
         checkSchemaStatus();
         loadAuditLogSection();
+        loadMaintenanceStatus();
+        loadMaintenanceLog();
         loadLineConfigStatus();
     }
 }
@@ -1931,6 +1933,67 @@ async function upgradeSchemaV35() {
 }
 
 // 👥 โหลดรายชื่อผู้ใช้งานสิทธิ์ Admin ทั้งหมดมาแสดงในหน้าตั้งค่า
+
+function maintenanceDateText(value){
+    if(!value)return 'ยังไม่มี';
+    const d=new Date(value);if(Number.isNaN(d.getTime()))return String(value);
+    return d.toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'});
+}
+
+async function loadMaintenanceStatus(){
+    const box=document.getElementById('maintenance-status');if(!box)return;
+    box.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังตรวจสอบสถานะ...';
+    const r=await run('getMaintenanceStatus',{});
+    if(!r||!r.success){box.innerHTML=`<span class="text-rose-600">${escapeHtml((r&&r.error)||'โหลดสถานะไม่สำเร็จ')}${String(r&&r.error||'').includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.1.0 ก่อน':''}</span>`;return;}
+    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+    set('maint-count-borrow',Number(r.borrowRows||0).toLocaleString('th-TH'));
+    set('maint-count-audit',Number(r.auditRows||0).toLocaleString('th-TH'));
+    set('maint-count-images',Number(r.imageFiles||0).toLocaleString('th-TH'));
+    set('maint-count-backups',Number(r.dailyBackupCount||0)+Number(r.monthlyBackupCount||0));
+    const en=document.getElementById('maint-backup-enabled');if(en)en.checked=!!r.backupEnabled;
+    const hr=document.getElementById('maint-backup-hour');if(hr)hr.value=Number.isFinite(Number(r.backupHour))?Number(r.backupHour):2;
+    const p=r.policy||{},latest=r.lastBackupUrl?`<a class="text-cyan-700 underline" href="${escapeHtml(r.lastBackupUrl)}" target="_blank" rel="noopener">${escapeHtml(r.lastBackupName||'เปิดไฟล์สำรองล่าสุด')}</a>`:escapeHtml(r.lastBackupName||'ยังไม่มี');
+    box.innerHTML=`<div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5"><div><b>สำรองล่าสุด:</b> ${maintenanceDateText(r.lastBackupAt)}<br>${latest}</div><div><b>อัตโนมัติ:</b> ${r.backupEnabled?'เปิด':'ปิด'} ${r.backupEnabled?'ช่วง '+String(r.backupHour).padStart(2,'0')+':00 น.':''}<br><b>Trigger:</b> ${r.backupTrigger?'พร้อม':r.triggerAuthorizationRequired?'ต้องอนุญาตสิทธิ์':'ยังไม่ตั้ง'}</div><div><b>Daily:</b> ${r.dailyBackupCount||0} ชุด / เก็บ ${p.dailyRetentionDays||30} วัน<br><b>Monthly:</b> ${r.monthlyBackupCount||0} ชุด / เก็บ ${p.monthlyRetentionCount||12} ชุด</div><div><b>Archive sheets:</b> ${r.archiveSheetCount||0}<br><b>MaintenanceLog:</b> ${r.maintenanceRows||0} รายการ</div></div>${r.triggerAuthorizationRequired?'<div class="mt-2 text-amber-700">ต้องรัน <b>authorizeMaintenanceServices</b> ใน Apps Script Editor 1 ครั้งก่อนเปิด Backup อัตโนมัติ</div>':''}`;
+}
+
+async function createBackupNow(){
+    const ok=await Swal.fire({title:'สำรองข้อมูลทันที?',text:'ระบบจะทำสำเนา Spreadsheet ไปยังโฟลเดอร์ System Backups โดยไม่แก้ข้อมูลต้นฉบับ',icon:'question',showCancelButton:true,confirmButtonText:'สำรองข้อมูล',cancelButtonText:'ยกเลิก'});if(!ok.isConfirmed)return;
+    Swal.fire({title:'กำลังสำรองข้อมูล...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    const r=await run('createSystemBackup',{});if(r&&r.success){await Swal.fire('สำรองสำเร็จ',`สร้าง ${r.fileName||'ไฟล์สำรอง'} เรียบร้อย`,'success');await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('สำรองไม่สำเร็จ',(r&&r.error)||'เกิดข้อผิดพลาด','error');
+}
+
+async function saveBackupSchedule(){
+    const enabled=!!document.getElementById('maint-backup-enabled')?.checked;let hour=Number(document.getElementById('maint-backup-hour')?.value||2);hour=Math.min(23,Math.max(0,hour));
+    const r=await run('setupBackupSchedule',{enabled,hour});
+    if(r&&r.success){Swal.fire('บันทึกแล้ว',r.message||'อัปเดตตารางสำรองแล้ว','success');await loadMaintenanceStatus();await loadMaintenanceLog();return;}
+    if(r&&r.authorizationRequired)Swal.fire('ต้องอนุญาตสิทธิ์','เปิด Apps Script → เลือก authorizeMaintenanceServices → Run → อนุญาตสิทธิ์ แล้วกลับมากดบันทึกอีกครั้ง','warning');else Swal.fire('ไม่สำเร็จ',(r&&r.error)||'ตั้งเวลาไม่สำเร็จ','error');
+}
+
+async function archiveOldAuditLogUi(){
+    const q=await Swal.fire({title:'Archive Audit Log',text:'ย้าย Log เก่าออกจาก AuditLog หลัก โดยไม่ลบข้อมูล',input:'number',inputValue:365,inputAttributes:{min:30,step:1},showCancelButton:true,confirmButtonText:'Archive',cancelButtonText:'ยกเลิก',inputLabel:'เก็บใน AuditLog หลักย้อนหลังอย่างน้อยกี่วัน'});if(!q.isConfirmed)return;
+    const days=Math.max(30,Number(q.value||365));Swal.fire({title:'กำลัง Archive...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const r=await run('archiveAuditLog',{retentionDays:days});
+    if(r&&r.success){Swal.fire('Archive สำเร็จ',`ย้าย ${Number(r.archived||0).toLocaleString('th-TH')} รายการ เหลือใน AuditLog ${Number(r.remaining||0).toLocaleString('th-TH')} รายการ`,'success');await loadAuditLogSection();await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('ไม่สำเร็จ',(r&&r.error)||'Archive ไม่สำเร็จ','error');
+}
+
+async function scanOrphanFilesUi(){
+    Swal.fire({title:'กำลังตรวจไฟล์รูป...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const r=await run('scanOrphanFiles',{});if(!r||!r.success){Swal.fire('ตรวจไม่สำเร็จ',(r&&r.error)||'เกิดข้อผิดพลาด','error');return;}
+    const sample=(r.candidates||[]).slice(0,10).map(x=>`<li class="text-left">${escapeHtml(x.name)}</li>`).join('');Swal.fire({title:`พบ orphan ${r.orphanCount||0} ไฟล์`,html:`<div class="text-xs text-gray-500 mb-2">ตรวจเฉพาะไฟล์ borrow_*.jpg อายุเกิน 7 วัน และไม่พบการอ้างอิงใน BorrowLog</div>${sample?'<ul class="list-disc pl-5 max-h-48 overflow-auto">'+sample+'</ul>':'<div>ไม่พบไฟล์ที่ต้องจัดการ</div>'}`,icon:r.orphanCount?'warning':'success'});await loadMaintenanceLog();
+}
+
+async function cleanupOrphanFilesUi(){
+    const q=await Swal.fire({title:'ย้าย orphan files ลงถังขยะ?',html:'ระบบตรวจซ้ำก่อนลบ และจะจัดการเฉพาะ <b>borrow_*.jpg</b> อายุเกิน 7 วันที่ไม่ถูกอ้างอิง<br><br>พิมพ์ <b>TRASH ORPHANS</b> เพื่อยืนยัน',input:'text',showCancelButton:true,confirmButtonText:'ย้ายลงถังขยะ',confirmButtonColor:'#e11d48',cancelButtonText:'ยกเลิก'});if(!q.isConfirmed)return;if(String(q.value||'').trim()!=='TRASH ORPHANS'){Swal.fire('ยังไม่ดำเนินการ','ข้อความยืนยันไม่ถูกต้อง','warning');return;}
+    const r=await run('cleanupOrphanFiles',{confirmText:'TRASH ORPHANS'});if(r&&r.success){Swal.fire('ดำเนินการแล้ว',`ย้ายลงถังขยะ ${r.trashed||0} ไฟล์${r.failed?' / ไม่สำเร็จ '+r.failed+' ไฟล์':''}`,'success');await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('ไม่สำเร็จ',(r&&r.error)||'Cleanup ไม่สำเร็จ','error');
+}
+
+async function cleanupArchiveLogsUi(){
+    const q=await Swal.fire({title:'ล้าง Audit Archive เก่ากว่า 3 ปี?',html:'ข้อมูลที่เก่ากว่า 1,095 วันจะถูกลบออกจากชีต Archive<br><b>ควรมี Backup ก่อนดำเนินการ</b><br><br>พิมพ์ <b>DELETE ARCHIVE</b> เพื่อยืนยัน',input:'text',showCancelButton:true,confirmButtonText:'ล้างข้อมูลเก่า',confirmButtonColor:'#475569',cancelButtonText:'ยกเลิก'});if(!q.isConfirmed)return;if(String(q.value||'').trim()!=='DELETE ARCHIVE'){Swal.fire('ยังไม่ดำเนินการ','ข้อความยืนยันไม่ถูกต้อง','warning');return;}
+    const r=await run('cleanupArchivedAuditLogs',{confirmText:'DELETE ARCHIVE',retentionDays:1095});if(r&&r.success){Swal.fire('Cleanup สำเร็จ',`ลบ ${r.deletedRows||0} แถวจาก Archive เก่า`,'success');await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('ไม่สำเร็จ',(r&&r.error)||'Cleanup ไม่สำเร็จ','error');
+}
+
+async function loadMaintenanceLog(){
+    const box=document.getElementById('maintenance-log-list');if(!box)return;box.innerHTML='กำลังโหลด...';const r=await run('getMaintenanceLog',{limit:50});if(!r||!r.success){box.textContent=(r&&r.error)||'โหลดไม่สำเร็จ';return;}
+    box.innerHTML=(r.data||[]).map(x=>`<div class="border-b border-gray-100 py-2"><b>${escapeHtml(x.Action||'-')}</b> • ${escapeHtml(x.AdminName||x.AdminID||'SYSTEM')}<br><span class="text-gray-400">${maintenanceDateText(x.Timestamp)} • ${escapeHtml(x.Result||'')}</span></div>`).join('')||'ยังไม่มี Maintenance Log';
+}
 
 async function loadAuditLogSection(){const box=document.getElementById('audit-log-list');if(!box)return;box.innerHTML='กำลังโหลด...';const res=await run('getAuditLog',{limit:50});if(!res.success){box.textContent=res.error||'โหลดไม่สำเร็จ';return;}box.innerHTML=(res.data||[]).map(x=>`<div class="border-b py-2"><b>${escapeHtml(x.Action)}</b> • ${escapeHtml(x.AdminName||x.AdminID)} • ${escapeHtml(x.Module)}<br><span class="text-gray-400">${escapeHtml(x.Timestamp)} ${escapeHtml(x.RecordID||'')}</span></div>`).join('')||'ยังไม่มี Audit Log';}
 async function loadLineConfigStatus() {
