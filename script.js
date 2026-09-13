@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.1.2 Maintenance UI Visibility Hotfix)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.0 LINE Rich Menu Manager)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -149,6 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initThemeMode();
     await checkAuthSession();
     await loadSystemData();
+    if (state.role === 'ADMIN') loadLineRichMenuStatus();
     const borrowDate = document.getElementById('borrow-date');
     if (borrowDate) borrowDate.valueAsDate = new Date();
 });
@@ -2138,3 +2139,132 @@ function changeEquipPage(targetPage) {
     equipCurrentPage = targetPage;
     renderEquipmentTable(); // เรียกฟังก์ชันวาดตารางคลังพัสดุอีกครั้งพร้อมหน้าใหม่
 }
+
+
+// ================================================================
+// LINE Rich Menu Manager v4.2.0 — ADMIN only
+// ================================================================
+let lineRichMenuImageBase64 = '';
+let lineRichMenuImageMeta = null;
+let lineRichMenuStatusCache = null;
+
+function lineRichMenuDefaults(layout){
+    const base='https://kelang-health.github.io/med-device-sharing/';
+    if(String(layout)==='6') return [
+        {label:'ยืมอุปกรณ์',type:'uri',value:base},
+        {label:'คืนอุปกรณ์',type:'message',value:'คืนอุปกรณ์'},
+        {label:'ตรวจสถานะ',type:'message',value:'สถานะ'},
+        {label:'คู่มือใช้งาน',type:'message',value:'ช่วยเหลือ'},
+        {label:'แจ้งปัญหา',type:'message',value:'แจ้งปัญหา'},
+        {label:'ติดต่อเจ้าหน้าที่',type:'message',value:'ติดต่อเจ้าหน้าที่'}
+    ];
+    return [
+        {label:'ตรวจสถานะ',type:'message',value:'สถานะ'},
+        {label:'ยืมอุปกรณ์',type:'uri',value:base},
+        {label:'คืนอุปกรณ์',type:'message',value:'คืนอุปกรณ์'},
+        {label:'แจ้งปัญหา',type:'message',value:'แจ้งปัญหา'},
+        {label:'เปิดระบบ',type:'uri',value:base},
+        {label:'คู่มือ / วิธีใช้',type:'message',value:'ช่วยเหลือ'},
+        {label:'ติดต่อเจ้าหน้าที่',type:'message',value:'ติดต่อเจ้าหน้าที่'},
+        {label:'เมนูบริการ',type:'message',value:'เมนู'}
+    ];
+}
+
+function renderLineRichMenuActionEditor(){
+    const host=document.getElementById('line-rm-actions'); if(!host)return;
+    const layout=document.getElementById('line-rm-layout')?.value||'8';
+    const defaults=lineRichMenuDefaults(layout);
+    host.innerHTML=defaults.map((x,i)=>`
+        <div class="line-rm-action-row grid grid-cols-1 sm:grid-cols-12 gap-2 rounded-xl border border-gray-100 bg-gray-50/60 p-2" data-index="${i}">
+            <div class="sm:col-span-1 flex items-center justify-center"><span class="line-rm-index">${i+1}</span></div>
+            <div class="sm:col-span-3"><label class="text-[9px] text-gray-400">ชื่อช่อง</label><input class="line-rm-label w-full border border-gray-200 bg-white px-2 py-2 rounded-lg text-xs" maxlength="20" value="${escapeHtml(x.label)}"></div>
+            <div class="sm:col-span-3"><label class="text-[9px] text-gray-400">Action</label><select class="line-rm-type w-full border border-gray-200 bg-white px-2 py-2 rounded-lg text-xs" onchange="updateLineRichMenuActionHint(this)"><option value="message" ${x.type==='message'?'selected':''}>Message</option><option value="uri" ${x.type==='uri'?'selected':''}>Link / URL</option><option value="postback" ${x.type==='postback'?'selected':''}>Postback</option></select></div>
+            <div class="sm:col-span-5"><label class="line-rm-value-label text-[9px] text-gray-400">${x.type==='uri'?'URL':'ข้อความ / ค่า'}</label><input class="line-rm-value w-full border border-gray-200 bg-white px-2 py-2 rounded-lg text-xs" value="${escapeHtml(x.value)}"></div>
+        </div>`).join('');
+}
+
+function updateLineRichMenuActionHint(sel){
+    const row=sel.closest('.line-rm-action-row'); if(!row)return;
+    const lab=row.querySelector('.line-rm-value-label');
+    if(lab) lab.textContent=sel.value==='uri'?'URL (https://...)':sel.value==='postback'?'Postback data':'ข้อความที่จะส่งเข้า LINE OA';
+}
+
+async function handleLineRichMenuImage(event){
+    lineRichMenuImageBase64=''; lineRichMenuImageMeta=null;
+    const file=event.target.files&&event.target.files[0], info=document.getElementById('line-rm-image-info'), preview=document.getElementById('line-rm-preview');
+    if(!file){ if(info)info.textContent='ยังไม่ได้เลือกรูป'; if(preview)preview.classList.add('hidden'); return; }
+    if(!['image/png','image/jpeg'].includes(file.type)){ Swal.fire('ชนิดไฟล์ไม่ถูกต้อง','ใช้ PNG หรือ JPEG เท่านั้น','warning'); event.target.value=''; return; }
+    if(file.size>1024*1024){ Swal.fire('ไฟล์ใหญ่เกินไป','LINE กำหนด Rich Menu image ไม่เกิน 1 MB','warning'); event.target.value=''; return; }
+    const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});
+    const size=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve({width:img.naturalWidth,height:img.naturalHeight});img.onerror=reject;img.src=data;});
+    lineRichMenuImageBase64=String(data); lineRichMenuImageMeta={name:file.name,size:file.size,type:file.type,width:size.width,height:size.height};
+    const exact=size.width===2500&&size.height===1686;
+    if(info){info.innerHTML=`${escapeHtml(file.name)} • ${(file.size/1024).toFixed(0)} KB • ${size.width}×${size.height}px ${exact?'<span class="text-emerald-600 font-bold">✓ ขนาดแนะนำ</span>':'<span class="text-amber-600 font-bold">⚠ ควรปรับเป็น 2500×1686</span>'}`;}
+    if(preview){preview.src=data;preview.classList.remove('hidden');}
+}
+
+function collectLineRichMenuActions(){
+    return Array.from(document.querySelectorAll('#line-rm-actions .line-rm-action-row')).map(row=>({
+        label:row.querySelector('.line-rm-label')?.value.trim()||'',
+        type:row.querySelector('.line-rm-type')?.value||'message',
+        value:row.querySelector('.line-rm-value')?.value.trim()||''
+    }));
+}
+
+async function loadLineRichMenuStatus(){
+    const box=document.getElementById('line-rm-status')||document.getElementById('line-richmenu-status'), list=document.getElementById('line-rm-list');
+    if(state.role!=='ADMIN'||!box)return;
+    box.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังอ่าน Rich Menu จาก LINE...';
+    const r=await run('getLineRichMenuStatus',{});
+    if(!r||!r.success){
+        const msg=String(r?.error||'อ่านสถานะไม่ได้');
+        box.innerHTML=`<span class="text-rose-600 font-bold">ไม่พร้อม:</span> ${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br><span class="text-amber-700">กรุณา Deploy Backend v4.2.0 ก่อน</span>':''}`;
+        if(list)list.innerHTML='<div class="text-gray-400">ยังอ่านรายการไม่ได้</div>'; return;
+    }
+    lineRichMenuStatusCache=r;
+    if(!r.configured){box.innerHTML='<span class="text-amber-700 font-bold">ยังไม่ได้ตั้ง Channel access token</span> — บันทึกการตั้งค่า LINE OA ก่อนสร้าง Rich Menu';if(list)list.innerHTML='<div class="text-gray-400">ไม่มีข้อมูล</div>';return;}
+    const count=(r.menus||[]).length, def=r.defaultRichMenuId||'';
+    box.innerHTML=`<div class="grid grid-cols-1 sm:grid-cols-2 gap-1"><div><b>Rich Menu:</b> ${count} รายการ</div><div><b>Default:</b> ${def?'<span class="text-emerald-700">'+escapeHtml(def)+'</span>':'ยังไม่ได้ตั้ง'}</div></div>`;
+    renderLineRichMenuList(r);
+}
+
+function renderLineRichMenuList(r){
+    const list=document.getElementById('line-rm-list'); if(!list)return;
+    const menus=r?.menus||[];
+    if(!menus.length){list.innerHTML='<div class="rounded-xl border border-dashed border-gray-200 p-4 text-center text-gray-400">ยังไม่มี Rich Menu ที่สร้างผ่าน Messaging API</div>';return;}
+    list.innerHTML=menus.map(m=>`<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border ${m.isDefault?'border-emerald-200 bg-emerald-50/40':'border-gray-100 bg-gray-50/50'} p-3"><div class="min-w-0"><div class="font-bold text-gray-700 truncate">${escapeHtml(m.name||'-')} ${m.isDefault?'<span class="ml-1 text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">DEFAULT</span>':''}</div><div class="text-[9px] text-gray-400 font-mono break-all">${escapeHtml(m.richMenuId||'')}</div><div class="text-[9px] text-gray-400">${Number(m.areaCount||0)} ช่อง • แถบ: ${escapeHtml(m.chatBarText||'-')}</div></div><div class="flex gap-1 flex-shrink-0">${m.isDefault?'':`<button type="button" onclick="setDefaultLineRichMenuUi('${escapeJsSingleQuoted(m.richMenuId)}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2.5 py-2 rounded-lg font-bold">ตั้ง Default</button>`}<button type="button" onclick="deleteLineRichMenuUi('${escapeJsSingleQuoted(m.richMenuId)}','${escapeJsSingleQuoted(m.name||'Rich Menu')}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-2 rounded-lg font-bold"><i class="fa-solid fa-trash-can"></i></button></div></div>`).join('');
+}
+
+async function createLineRichMenuFromUi(){
+    if(state.role!=='ADMIN')return;
+    const layout=document.getElementById('line-rm-layout')?.value||'8', actions=collectLineRichMenuActions();
+    if(!lineRichMenuImageBase64){Swal.fire('ยังไม่มีภาพ Rich Menu','กรุณาเลือก PNG/JPEG ก่อนสร้าง','warning');return;}
+    if(!lineRichMenuImageMeta||lineRichMenuImageMeta.width!==2500||lineRichMenuImageMeta.height!==1686){
+        const q=await Swal.fire({title:'ขนาดภาพไม่ใช่ 2500 × 1686',text:'พื้นที่กดอาจไม่ตรงกับภาพ ต้องการสร้างต่อหรือไม่?',icon:'warning',showCancelButton:true,confirmButtonText:'สร้างต่อ',cancelButtonText:'ยกเลิก'});if(!q.isConfirmed)return;
+    }
+    if(actions.some(x=>!x.label||!x.value)){Swal.fire('ข้อมูล Action ไม่ครบ','กรุณากรอกชื่อและค่าให้ครบทุกช่อง','warning');return;}
+    const ok=await Swal.fire({title:'Publish Rich Menu?',html:`สร้าง Rich Menu <b>${actions.length} ช่อง</b> และอัปโหลดภาพไปยัง LINE OA${document.getElementById('line-rm-set-default')?.checked?'<br>จากนั้นตั้งเป็น <b>Default</b>':''}`,icon:'question',showCancelButton:true,confirmButtonText:'สร้างและ Publish',cancelButtonText:'ยกเลิก'});
+    if(!ok.isConfirmed)return;
+    Swal.fire({title:'กำลังสร้าง Rich Menu...',html:'ตรวจ Action → สร้างเมนู → อัปโหลดภาพ → ตั้ง Default',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    const r=await run('createLineRichMenu',{layout,name:document.getElementById('line-rm-name')?.value||'',chatBarText:document.getElementById('line-rm-chatbar')?.value||'เมนูยืม-คืน',selected:!!document.getElementById('line-rm-selected')?.checked,setDefault:!!document.getElementById('line-rm-set-default')?.checked,actions,imageBase64:lineRichMenuImageBase64});
+    if(r?.success){Swal.fire('สร้าง Rich Menu สำเร็จ',`Rich Menu ID: ${escapeHtml(r.createdRichMenuId||'')}`,'success');lineRichMenuStatusCache=r;renderLineRichMenuList(r);await loadLineRichMenuStatus();}
+    else Swal.fire('สร้างไม่สำเร็จ',r?.error||'LINE API error','error');
+}
+
+async function setDefaultLineRichMenuUi(id){
+    const q=await Swal.fire({title:'ตั้งเป็น Default?',text:id,icon:'question',showCancelButton:true,confirmButtonText:'ตั้ง Default'});if(!q.isConfirmed)return;
+    const r=await run('setDefaultLineRichMenu',{richMenuId:id});if(r?.success){Swal.fire('เรียบร้อย','ตั้ง Default Rich Menu แล้ว','success');lineRichMenuStatusCache=r;renderLineRichMenuList(r);await loadLineRichMenuStatus();}else Swal.fire('ไม่สำเร็จ',r?.error||'LINE API error','error');
+}
+
+async function clearDefaultLineRichMenuUi(){
+    const q=await Swal.fire({title:'ยกเลิก Default Rich Menu?',text:'ผู้ใช้ที่ไม่มี Per-user Rich Menu จะไม่เห็น Default จาก Messaging API',icon:'warning',showCancelButton:true,confirmButtonText:'ยกเลิก Default',confirmButtonColor:'#dc2626'});if(!q.isConfirmed)return;
+    const r=await run('clearDefaultLineRichMenu',{});if(r?.success){Swal.fire('เรียบร้อย','ยกเลิก Default แล้ว','success');await loadLineRichMenuStatus();}else Swal.fire('ไม่สำเร็จ',r?.error||'LINE API error','error');
+}
+
+async function deleteLineRichMenuUi(id,name){
+    const q=await Swal.fire({title:'ลบ Rich Menu?',html:`<b>${escapeHtml(name)}</b><br><span class="text-xs">${escapeHtml(id)}</span><br><br>การลบจาก LINE ย้อนกลับไม่ได้`,icon:'warning',showCancelButton:true,confirmButtonText:'ลบ Rich Menu',cancelButtonText:'ยกเลิก',confirmButtonColor:'#dc2626'});if(!q.isConfirmed)return;
+    const r=await run('deleteLineRichMenu',{richMenuId:id});if(r?.success){Swal.fire('ลบแล้ว','Rich Menu ถูกลบจาก LINE OA','success');await loadLineRichMenuStatus();}else Swal.fire('ลบไม่สำเร็จ',r?.error||'LINE API error','error');
+}
+
+// สร้าง editor ค่าเริ่มต้นทันทีหลัง DOM พร้อม
+document.addEventListener('DOMContentLoaded',()=>setTimeout(renderLineRichMenuActionEditor,0));

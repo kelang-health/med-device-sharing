@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=4.1.2" />
+    <link rel="stylesheet" href="style.css?v=4.2.0" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -603,6 +603,61 @@
                     </div>
                 </div>
 
+                <div id="line-rich-menu-manager" class="admin-role-only bg-white border border-emerald-100 rounded-2xl shadow-sm p-5 max-w-2xl">
+                    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div>
+                            <h4 class="font-bold text-sm text-gray-800 flex items-center gap-2"><i class="fa-solid fa-table-cells-large text-emerald-600"></i> LINE Rich Menu Manager</h4>
+                            <p class="text-[11px] text-gray-400 mt-1">สร้าง อัปโหลดภาพ ตั้ง Default และจัดการ Rich Menu จากหลังบ้าน โดย Channel access token ไม่ถูกส่งไป Browser</p>
+                        </div>
+                        <button type="button" onclick="loadLineRichMenuStatus()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-100 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap"><i class="fa-solid fa-rotate mr-1"></i> รีเฟรช</button>
+                    </div>
+
+                    <div id="line-richmenu-status" class="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-[11px] text-gray-600">กำลังตรวจสอบ Rich Menu...</div>
+
+                    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block font-bold text-gray-500 mb-1">รูปแบบเมนู</label>
+                            <select id="line-rm-layout" onchange="renderLineRichMenuActionEditor()" class="w-full border border-gray-200 bg-white px-3 py-2 rounded-xl">
+                                <option value="8">8 ช่อง — 4 × 2</option>
+                                <option value="6">6 ช่อง — 3 × 2</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-gray-500 mb-1">ข้อความแถบเมนู</label>
+                            <input id="line-rm-chatbar" type="text" maxlength="14" value="เมนูยืม-คืน" class="w-full border border-gray-200 px-3 py-2 rounded-xl">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block font-bold text-gray-500 mb-1">ชื่อ Rich Menu ภายในระบบ</label>
+                            <input id="line-rm-name" type="text" maxlength="300" value="ระบบยืมคืนอุปกรณ์การแพทย์ v4.2" class="w-full border border-gray-200 px-3 py-2 rounded-xl">
+                        </div>
+                    </div>
+
+                    <div class="mt-3 flex flex-wrap gap-4 text-xs">
+                        <label class="flex items-center gap-2"><input id="line-rm-selected" type="checkbox" checked class="accent-emerald-600 h-4 w-4"> เปิดเมนูอัตโนมัติเมื่อเปิดแชต</label>
+                        <label class="flex items-center gap-2"><input id="line-rm-set-default" type="checkbox" checked class="accent-emerald-600 h-4 w-4"> ตั้งเป็น Default หลังสร้าง</label>
+                    </div>
+
+                    <div class="mt-4 rounded-xl border border-dashed border-emerald-200 bg-emerald-50/30 p-3">
+                        <label class="block font-bold text-emerald-800 text-xs mb-1">ภาพ Rich Menu</label>
+                        <input id="line-rm-image" type="file" accept="image/png,image/jpeg" onchange="handleLineRichMenuImage(event)" class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-emerald-100 file:text-emerald-800 file:font-bold">
+                        <p class="text-[10px] text-emerald-800/70 mt-2">แนะนำ 2500 × 1686 px, PNG/JPEG, ไม่เกิน 1 MB เพื่อให้พื้นที่กดตรงกับภาพ</p>
+                        <div id="line-rm-image-info" class="text-[10px] text-gray-500 mt-2">ยังไม่ได้เลือกรูป</div>
+                        <img id="line-rm-preview" alt="Rich menu preview" class="hidden mt-3 w-full rounded-xl border border-gray-200 bg-white object-contain">
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="flex items-center justify-between mb-2"><div><h5 class="font-bold text-xs text-gray-700">กำหนด Action แต่ละช่อง</h5><p class="text-[10px] text-gray-400">Message = ส่งข้อความเข้า OA, Link = เปิดเว็บไซต์, Postback = ส่งค่ากลับ Webhook</p></div></div>
+                        <div id="line-rm-actions" class="space-y-2"></div>
+                    </div>
+
+                    <button id="line-rm-create-btn" type="button" onclick="createLineRichMenuFromUi()" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl text-xs font-bold shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> สร้าง + อัปโหลด + Publish Rich Menu</button>
+
+                    <div class="mt-5 border-t border-gray-100 pt-4">
+                        <div class="flex items-center justify-between"><div><h5 class="font-bold text-xs text-gray-700">Rich Menu ที่อยู่ใน LINE OA</h5><p class="text-[10px] text-gray-400">Default จะแสดงกับผู้ใช้ที่ไม่มี Per-user Rich Menu</p></div><button type="button" onclick="clearDefaultLineRichMenuUi()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-xl text-[11px] font-bold">ยกเลิก Default</button></div>
+                        <div id="line-rm-list" class="mt-3 space-y-2 text-[11px] text-gray-600"><div class="text-gray-400">กดรีเฟรชเพื่อดูรายการ</div></div>
+                    </div>
+                </div>
+
                 <div class="admin-role-only bg-white border border-emerald-100 rounded-2xl shadow-sm p-5 max-w-2xl">
                     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                         <div>
@@ -811,7 +866,7 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.1.2 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.2.0 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
@@ -1041,6 +1096,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=4.1.2"></script>
+    <script src="script.js?v=4.2.0"></script>
 </body>
 </html>

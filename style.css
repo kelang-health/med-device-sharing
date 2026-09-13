@@ -390,3 +390,12 @@ html[data-theme="dark"] .maintenance-action-amber{ background:#3a2a13 !important
 html[data-theme="dark"] .maintenance-action-cyan{ background:#12343d !important; color:#67e8f9 !important; border-color:#155e75 !important; }
 html[data-theme="dark"] .maintenance-action-rose{ background:#3b1722 !important; color:#fda4af !important; border-color:#9f1239 !important; }
 html[data-theme="dark"] .maintenance-action-slate{ background:#1e293b !important; color:#cbd5e1 !important; border-color:#475569 !important; }
+
+
+/* ---------- v4.2.0 LINE Rich Menu Manager ---------- */
+#line-rich-menu-manager .line-rm-action-row{transition:border-color .15s ease,background .15s ease;}
+#line-rich-menu-manager .line-rm-action-row:focus-within{border-color:#a7f3d0;background:#ecfdf5;}
+.line-rm-index{display:inline-flex;width:26px;height:26px;align-items:center;justify-content:center;border-radius:999px;background:#d1fae5;color:#047857;font-weight:800;font-size:11px;}
+#line-rm-preview{max-height:420px;}
+html[data-theme="dark"] #line-rich-menu-manager .line-rm-action-row{background:var(--app-surface-2);border-color:var(--app-border);}
+html[data-theme="dark"] #line-rich-menu-manager .line-rm-action-row:focus-within{border-color:#065f46;background:rgba(16,185,129,.08);}
