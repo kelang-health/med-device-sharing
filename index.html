@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=3.9.0" />
+    <link rel="stylesheet" href="style.css?v=4.0.0" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -30,24 +30,24 @@
             </div>
             <nav class="p-3 space-y-1">
                 <button onclick="switchTab('dashboard')" id="btn-menu-dashboard" class="menu-item active w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                    <i class="fa-solid fa-chart-pie text-lg text-indigo-500 w-6 text-center"></i> 
+                    <i class="fa-solid fa-chart-pie text-lg text-indigo-500 w-6 text-center"></i>
                     <span class="menu-text transition-all duration-200">แดชบอร์ดสรุปผล</span>
                 </button>
                 <button onclick="switchTab('borrow')" id="btn-menu-borrow" class="menu-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                    <i class="fa-solid fa-handshake text-lg text-teal-500 w-6 text-center"></i> 
+                    <i class="fa-solid fa-handshake text-lg text-teal-500 w-6 text-center"></i>
                     <span class="menu-text transition-all duration-200">บันทึกการยืม-คืน</span>
                     <span id="menu-badge-borrow" class="menu-badge hidden">0</span>
                 </button>
                 <button onclick="openBorrowForm()" id="btn-menu-borrow-form" class="menu-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                    <i class="fa-solid fa-file-pen text-lg text-teal-600 w-6 text-center"></i> 
+                    <i class="fa-solid fa-file-pen text-lg text-teal-600 w-6 text-center"></i>
                     <span class="menu-text transition-all duration-200">เพิ่ม/แก้ไขรายการยืม</span>
                 </button>
                 <button onclick="switchTab('equipments')" id="btn-menu-equipments" class="menu-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                    <i class="fa-solid fa-wheelchair text-lg text-amber-500 w-6 text-center"></i> 
+                    <i class="fa-solid fa-wheelchair text-lg text-amber-500 w-6 text-center"></i>
                     <span class="menu-text transition-all duration-200">คลังกายอุปกรณ์</span>
                 </button>
                 <button onclick="switchTab('tracking')" id="btn-menu-tracking" class="menu-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                    <i class="fa-solid fa-clipboard-list text-lg text-orange-500 w-6 text-center"></i> 
+                    <i class="fa-solid fa-clipboard-list text-lg text-orange-500 w-6 text-center"></i>
                     <span class="menu-text transition-all duration-200">รายงานติดตามอุปกรณ์</span>
                     <span id="menu-badge-tracking" class="menu-badge hidden">0</span>
                 </button>
@@ -55,26 +55,30 @@
                     <i class="fa-solid fa-chart-line text-lg text-violet-500 w-6 text-center"></i>
                     <span class="menu-text transition-all duration-200">วิเคราะห์การใช้งาน</span>
                 </button>
+                <button onclick="switchTab('procurement')" id="btn-menu-procurement" class="admin-role-only menu-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
+                    <i class="fa-solid fa-cart-flatbed text-lg text-cyan-600 w-6 text-center"></i>
+                    <span class="menu-text transition-all duration-200">แผนจัดหา/ทดแทน</span>
+                </button>
                 <button onclick="switchTab('map')" id="btn-menu-map" class="menu-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                    <i class="fa-solid fa-map-location-dot text-lg text-rose-500 w-6 text-center"></i> 
+                    <i class="fa-solid fa-map-location-dot text-lg text-rose-500 w-6 text-center"></i>
                     <span class="menu-text transition-all duration-200">แผนที่พิกัดผู้ยืม (GPS)</span>
                 </button>
                 <button onclick="switchTab('settings')" id="btn-menu-settings" class="admin-role-only menu-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                    <i class="fa-solid fa-sliders text-lg text-sky-500 w-6 text-center"></i> 
+                    <i class="fa-solid fa-sliders text-lg text-sky-500 w-6 text-center"></i>
                     <span class="menu-text transition-all duration-200">ตั้งค่าข้อมูลระบบ</span>
                 </button>
             </nav>
         </div>
         <div class="p-3 border-t border-gray-50 bg-gray-50/50">
             <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
-                <i class="fa-solid fa-arrow-right-from-bracket text-lg w-6 text-center"></i> 
+                <i class="fa-solid fa-arrow-right-from-bracket text-lg w-6 text-center"></i>
                 <span class="menu-text transition-all duration-200">ออกจากระบบ</span>
             </button>
         </div>
     </aside>
 
     <div id="main-wrapper" class="min-h-screen flex flex-col transition-all duration-300 pl-0">
-        
+
         <header class="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-30 print:hidden">
             <div class="flex items-center gap-4 overflow-hidden">
                 <button id="sidebar-toggle" onclick="toggleMobileSidebar()" class="text-gray-500 hover:bg-gray-100 p-2 rounded-xl transition">
@@ -88,8 +92,13 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="flex items-center gap-3">
+                <div id="font-scale-control" class="font-scale-control flex items-center rounded-xl border border-gray-200 bg-white overflow-hidden flex-shrink-0" title="ปรับขนาดตัวอักษรทั้งระบบ">
+                    <button type="button" onclick="changeFontScale(-1)" class="font-scale-btn" aria-label="ลดขนาดตัวอักษร">A−</button>
+                    <button type="button" onclick="resetFontScale()" id="font-scale-label" class="font-scale-label" title="กลับขนาดมาตรฐาน">100%</button>
+                    <button type="button" onclick="changeFontScale(1)" class="font-scale-btn" aria-label="เพิ่มขนาดตัวอักษร">A+</button>
+                </div>
                 <button id="theme-toggle-btn" onclick="toggleThemeMode()" title="สลับโหมดมืด/สว่าง" class="theme-toggle-btn text-gray-500 hover:bg-gray-100 w-9 h-9 flex items-center justify-center rounded-xl transition flex-shrink-0">
                     <i id="theme-toggle-icon" class="fa-solid fa-moon text-sm"></i>
                 </button>
@@ -106,7 +115,7 @@
         </header>
 
         <main class="flex-1 p-4 md:p-6 space-y-6 max-w-7xl w-full mx-auto">
-            
+
             <div id="public-pdpa-banner" class="bg-amber-50 border border-amber-200/50 p-4 rounded-2xl flex gap-3 text-amber-900 text-xs print:hidden">
                 <i class="fa-solid fa-circle-info text-base text-amber-500 mt-0.5"></i>
                 <div>
@@ -121,7 +130,7 @@
                         <i class="fa-solid fa-print"></i> พิมพ์รายงานสรุป
                     </button>
                 </div>
-                
+
                 <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4" id="dashboard-kpi-grid">
                     <div class="stat-card bg-blue-50/70 border border-blue-100/50 p-4 rounded-2xl relative overflow-hidden shadow-sm">
                         <p class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">อุปกรณ์ทั้งหมดในคลัง</p>
@@ -197,7 +206,7 @@
                             </button>
                         </div>
                     </div>
-                    
+
                     <div class="overflow-x-auto rounded-xl border border-gray-100">
                         <table class="w-full text-left border-collapse table-report" id="tbl-borrow-log">
                             <thead class="bg-gray-50 text-gray-600 text-xs font-bold uppercase">
@@ -438,6 +447,57 @@
                         <h4 class="font-bold text-sm text-violet-900 mb-3"><i class="fa-solid fa-lightbulb text-violet-600 mr-1"></i> ข้อเสนอเชิงบริหารจากข้อมูล</h4>
                         <div id="analytics-recommendations" class="space-y-2 text-xs text-violet-900"></div>
                     </div>
+                </div>
+            </section>
+
+            <section id="sec-procurement" class="app-view space-y-6 hidden">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 print:hidden">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-cart-flatbed text-cyan-600"></i> แผนจัดหาและทดแทนอุปกรณ์</h3>
+                        <p class="text-xs text-gray-400 mt-1">จัดลำดับจากความถี่การยืม สัดส่วนใช้งาน สถานะคลัง และประวัติซ่อม โดยไม่ใช้ข้อมูลส่วนบุคคลผู้รับบริการ</p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <select id="procurement-period" onchange="loadProcurementPlan()" class="border border-gray-200 bg-white px-3 py-2 rounded-xl text-xs focus:outline-none">
+                            <option value="fy">ปีงบประมาณปัจจุบัน</option>
+                            <option value="12m">12 เดือนล่าสุด</option>
+                            <option value="90d">90 วันล่าสุด</option>
+                            <option value="all">ประวัติทั้งหมด</option>
+                        </select>
+                        <button onclick="loadProcurementPlan()" class="bg-cyan-50 hover:bg-cyan-100 text-cyan-700 px-3 py-2 rounded-xl text-xs font-bold"><i class="fa-solid fa-rotate mr-1"></i> รีเฟรช</button>
+                        <button onclick="window.print()" class="bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold"><i class="fa-solid fa-print mr-1"></i> พิมพ์</button>
+                    </div>
+                </div>
+                <div id="procurement-period-label" class="text-[11px] text-gray-400"></div>
+
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div class="bg-cyan-50/70 border border-cyan-100 rounded-2xl p-4"><p class="text-[10px] font-bold text-cyan-700">ประเภทอุปกรณ์</p><h4 id="proc-kpi-types" class="text-2xl font-black text-cyan-900 mt-1">-</h4></div>
+                    <div class="bg-rose-50/70 border border-rose-100 rounded-2xl p-4"><p class="text-[10px] font-bold text-rose-700">ประเภทเร่งด่วน</p><h4 id="proc-kpi-priority" class="text-2xl font-black text-rose-900 mt-1">-</h4></div>
+                    <div class="bg-emerald-50/70 border border-emerald-100 rounded-2xl p-4"><p class="text-[10px] font-bold text-emerald-700">เสนอจัดเพิ่ม</p><h4 id="proc-kpi-add" class="text-2xl font-black text-emerald-900 mt-1">-</h4></div>
+                    <div class="bg-amber-50/70 border border-amber-100 rounded-2xl p-4"><p class="text-[10px] font-bold text-amber-700">เสนอทดแทน</p><h4 id="proc-kpi-replace" class="text-2xl font-black text-amber-900 mt-1">-</h4></div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4"><p class="text-[10px] font-bold text-slate-600">ควรทบทวนสต็อก</p><h4 id="proc-kpi-underused" class="text-2xl font-black text-slate-800 mt-1">-</h4></div>
+                </div>
+
+                <div class="bg-cyan-50/50 border border-cyan-100 rounded-2xl p-5">
+                    <h4 class="font-bold text-sm text-cyan-900 mb-3"><i class="fa-solid fa-lightbulb mr-1"></i> ข้อเสนอจากข้อมูล</h4>
+                    <div id="procurement-recommendations" class="space-y-2 text-xs text-cyan-900"><div class="text-gray-400">กำลังโหลด...</div></div>
+                </div>
+
+                <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-gray-100">
+                        <h4 class="font-bold text-sm text-gray-800"><i class="fa-solid fa-list-ol text-cyan-600 mr-1"></i> ลำดับความสำคัญการจัดหา</h4>
+                        <p class="text-[11px] text-gray-400 mt-1">คะแนนเป็นเครื่องมือช่วยคัดกรองเบื้องต้น ควรพิจารณาร่วมกับงบประมาณ อายุครุภัณฑ์ และการตรวจสภาพจริง</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs table-report">
+                            <thead class="bg-gray-50 text-gray-600"><tr><th class="p-3 text-left">ประเภทอุปกรณ์</th><th class="p-3 text-right">คลัง</th><th class="p-3 text-right">ยืมในช่วง</th><th class="p-3 text-right">ใช้งานปัจจุบัน</th><th class="p-3 text-right">ซ่อม/ตรวจ</th><th class="p-3 text-right">จัดเพิ่ม</th><th class="p-3 text-right">ทดแทน</th><th class="p-3 text-center">คะแนน</th><th class="p-3 text-left">ข้อเสนอ</th></tr></thead>
+                            <tbody id="procurement-plan-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-gray-100"><h4 class="font-bold text-sm text-gray-800"><i class="fa-solid fa-screwdriver-wrench text-amber-600 mr-1"></i> รายการเข้าข่ายประเมินทดแทนรายชิ้น</h4></div>
+                    <div class="overflow-x-auto"><table class="w-full text-xs table-report"><thead class="bg-gray-50"><tr><th class="p-3 text-left">รหัส</th><th class="p-3 text-left">ประเภท</th><th class="p-3 text-center">สถานะ</th><th class="p-3 text-right">เหตุการณ์ซ่อม/ตรวจ</th><th class="p-3 text-left">เหตุผล</th></tr></thead><tbody id="procurement-replacement-body"></tbody></table></div>
                 </div>
             </section>
 
@@ -707,13 +767,13 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v3.9.0 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.0.0 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
     <div id="print-section" class="hidden print:block print:w-full print:bg-white print:text-black">
         <div style="max-width: 800px; margin: 0 auto; padding: 10px 20px; font-family: 'Sarabun', sans-serif; font-size: 15px; line-height: 1.5;">
-            
+
             <div class="flex justify-center items-center mb-6">
                 <img id="print-logo" src="" alt="Logo" class="h-20 w-auto mr-20 object-contain" />
                 <div class="text-center">
@@ -723,11 +783,11 @@
                     </h2>
                 </div>
             </div>
-            
+
             <div class="text-right mb-4">
                 <p>วันที่ <span id="print-date" class="border-b border-dotted border-black inline-block w-40 text-center"></span></p>
             </div>
-            
+
             <div class="space-y-3">
                 <div class="flex items-baseline gap-2">
                     <span class="whitespace-nowrap">ชื่อ - สกุลผู้ยืม :</span>
@@ -735,14 +795,14 @@
                     <span class="whitespace-nowrap">เบอร์โทร :</span>
                     <span id="print-phone" class="w-40 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
                 </div>
-                
+
                 <div class="flex items-baseline gap-2">
                     <span class="whitespace-nowrap">เพื่อให้ผู้ป่วยชื่อ :</span>
                     <span id="print-patient" class="flex-1 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
                     <span class="whitespace-nowrap">ความสัมพันธ์กับผู้ป่วย :</span>
                     <span id="print-relation" class="w-40 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
                 </div>
-                
+
                 <div class="flex items-baseline gap-2">
                     <span class="whitespace-nowrap">ประเภทอุปกรณ์ที่ยืม :</span>
                     <span id="print-equipment" class="flex-1 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
@@ -758,7 +818,7 @@
                     <span id="print-end-date" class="flex-1 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
                     <span class="whitespace-nowrap">เป็นการสิ้นสุดคืนค่ามัดจำ</span>
                 </div>
-                
+
                 <div class="mt-4 space-y-2 text-justify leading-relaxed">
                     <p class="indent-12">
                         ข้าพเจ้ารับทราบว่า หากได้ยืมอุปกรณ์เกิน 6 เดือน จะมิได้เงินคืนค่ามัดจำอุปกรณ์ และหากไม่มีการนำส่งคืนภายในระยะเวลาที่กำหนด ยินยอมให้เจ้าหน้าที่ โทรติดตามสถานะการใช้งานได้ทุกๆ 3 เดือน จนกว่าจะมีการส่งคืนโดยเสร็จสมบูรณ์
@@ -782,14 +842,14 @@
                     <p class="mt-2">( <span id="print-sign-staff" class="inline-block w-48 border-b border-dotted border-black text-blue-800"></span> )</p>
                 </div>
             </div>
-            
+
             <div class="text-center mt-6">
                 <p>ลงชื่อ ....................................................... พยาน</p>
                 <p class="mt-2">( ...................................................... )</p>
             </div>
-            
+
             <hr class="my-6 border-t-2 border-dashed border-gray-400">
-            
+
             <h4 class="font-bold mb-3">ส่วนของการส่งคืนอุปกรณ์</h4>
             <div class="flex justify-between text-sm">
                 <div class="w-1/2 text-left">
@@ -807,7 +867,7 @@
                     <p class="mt-2">วันที่รับคืน ....................................................</p>
                 </div>
             </div>
-            
+
         </div>
     </div>
 
@@ -937,6 +997,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=3.9.0"></script>
+    <script src="script.js?v=4.0.0"></script>
 </body>
 </html>
