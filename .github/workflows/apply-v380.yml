@@ -15,6 +15,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: work/v3.8.0-equipment-lifecycle
+      - name: Repair patcher newline literals
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('tools/apply_v380.py')
+          s=p.read_text(encoding='utf-8')
+          a="js,n=re.subn(pat,new_return,js,count=1,flags=re.S)"
+          b="new_return = new_return.replace(r'\\n', '\\n')\njs,n=re.subn(pat,new_return,js,count=1,flags=re.S)"
+          c="js=js.replace(needle,lifecycle_func+needle,1)"
+          d="lifecycle_func = lifecycle_func.replace(r'\\n', '\\n')\njs=js.replace(needle,lifecycle_func+needle,1)"
+          if a not in s or c not in s:
+              raise SystemExit('patcher repair markers missing')
+          s=s.replace(a,b,1).replace(c,d,1)
+          p.write_text(s,encoding='utf-8')
+          PY
       - name: Patch frontend
         run: python tools/apply_v380.py
       - name: Validate JavaScript
