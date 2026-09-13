@@ -37,7 +37,6 @@ html{ scroll-behavior:smooth; -webkit-tap-highlight-color:transparent; }
 body.font-sarabun{ font-family:'Sarabun', sans-serif; -webkit-tap-highlight-color:transparent; }
 
 /* ---------- เพิ่มขนาดตัวอักษรโดยรวมของทั้งเว็บให้อ่านง่ายและชัดเจนขึ้น ---------- */
-/* ระบบเดิมใช้ตัวอักษรเล็กมาก (text-xs และเล็กกว่า) เกือบทั้งเว็บ จึงปรับขนาดจริงของคลาสเหล่านี้ให้ใหญ่ขึ้นทั่วทั้งระบบ */
 .text-\[9px\]{ font-size:calc(10px * var(--font-scale)) !important; }
 .text-\[10px\]{ font-size:calc(11.5px * var(--font-scale)) !important; }
 .text-\[11px\]{ font-size:calc(12.5px * var(--font-scale)) !important; }
@@ -123,7 +122,7 @@ body.font-sarabun{ font-family:'Sarabun', sans-serif; -webkit-tap-highlight-colo
 }
 .stat-card:hover{ transform:translateY(-2px); box-shadow:0 10px 24px -12px rgba(15,23,42,.18); }
 
-/* ---------- หมวดหมู่อุปกรณ์: การ์ดพาสเทล + วงไอคอนสีเข้มสดโดดเด่น ---------- */
+/* ---------- หมวดหมู่อุปกรณ์ ---------- */
 .cat-card{ position:relative; }
 .cat-badge{
   transition:transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease;
@@ -131,23 +130,19 @@ body.font-sarabun{ font-family:'Sarabun', sans-serif; -webkit-tap-highlight-colo
 }
 .cat-card:hover .cat-badge{ transform:scale(1.08) rotate(-4deg); }
 
-/* ---------- ปุ่ม CTA หลักที่ต้องการความโดดเด่นเป็นพิเศษ (แทนการใช้ shadow-{color} ของ Tailwind v3 ที่ระบบนี้ไม่มี) ---------- */
+/* ---------- CTA ---------- */
 .btn-cta-teal{ box-shadow:0 8px 20px -6px rgba(13,148,136,.45); }
 .btn-cta-teal:hover{ box-shadow:0 10px 24px -6px rgba(13,148,136,.55); background-color:#0f766e !important; }
 .btn-cta-teal:active{ background-color:#115e59 !important; }
-
 .btn-cta-purple{ box-shadow:0 8px 20px -6px rgba(126,34,206,.45); }
 .btn-cta-purple:hover{ box-shadow:0 10px 24px -6px rgba(126,34,206,.55); background-color:#6b21a8 !important; }
 .btn-cta-purple:active{ background-color:#581c87 !important; }
-
 .btn-cta-indigo{ box-shadow:0 8px 20px -6px rgba(79,70,229,.45); }
 .btn-cta-indigo:hover{ box-shadow:0 10px 24px -6px rgba(79,70,229,.55); background-color:#4338ca !important; }
 .btn-cta-indigo:active{ background-color:#3730a3 !important; }
-
 .btn-cta-amber{ box-shadow:0 8px 20px -6px rgba(217,119,6,.45); }
 .btn-cta-amber:hover{ box-shadow:0 10px 24px -6px rgba(217,119,6,.55); background-color:#b45309 !important; }
 .btn-cta-amber:active{ background-color:#92400e !important; }
-
 
 /* ---------- accessibility font scale control ---------- */
 body.font-sarabun{ font-size:calc(16px * var(--font-scale)); }
@@ -163,16 +158,15 @@ html[data-theme="dark"] .font-scale-control,html[data-theme="dark"] .font-scale-
 .theme-toggle-btn i{ transition:transform .35s cubic-bezier(.34,1.56,.64,1); }
 .theme-toggle-btn:hover i{ transform:rotate(20deg) scale(1.1); }
 
-/* ---------- ป้องกันการลากเลือกข้อความบนปุ่ม/เมนู (ทำให้เกิดแถบไฮไลต์สีทับปุ่มตอนคลิก/แตะค้างบนมือถือ) ---------- */
 button, .menu-item, [onclick], a.button-like{
   user-select:none;
   -webkit-user-select:none;
   -moz-user-select:none;
   -ms-user-select:none;
-  -webkit-touch-callout:none;      /* ปิดเมนู callout ค้างแตะบน iOS ที่ทำให้ขึ้นแถบเลือกคำสีฟ้าทับปุ่ม */
-  -webkit-tap-highlight-color:transparent;  /* ปิดแถบไฮไลต์สีทึบเวลาแตะปุ่มบนมือถือ (ต้นเหตุปุ่มดูเหมือนสีทับกันมองไม่เห็น) */
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
   tap-highlight-color:transparent;
-  touch-action:manipulation;        /* ลดดีเลย์และการแตะซ้อนที่ทำให้เกิดการเลือกข้อความโดยไม่ตั้งใจ */
+  touch-action:manipulation;
   outline:none;
 }
 button:focus-visible, .menu-item:focus-visible{
@@ -180,7 +174,7 @@ button:focus-visible, .menu-item:focus-visible{
   outline-offset:2px;
 }
 
-/* ---------- รูปภาพหลักฐานแนบในฟอร์มยืม ---------- */
+/* ---------- รูปภาพหลักฐาน ---------- */
 .photo-preview-item{
   position:relative;
   aspect-ratio:1/1;
@@ -199,12 +193,10 @@ button:focus-visible, .menu-item:focus-visible{
   cursor:pointer; transition:background .15s ease;
 }
 .photo-preview-remove:hover{ background:#e11d48; }
-.gallery-photo-item{
-  border-radius:.75rem; overflow:hidden; border:1px solid #e2e8f0; aspect-ratio:1/1;
-}
+.gallery-photo-item{ border-radius:.75rem; overflow:hidden; border:1px solid #e2e8f0; aspect-ratio:1/1; }
 .gallery-photo-item img{ width:100%; height:100%; object-fit:cover; display:block; cursor:zoom-in; }
 
-/* ---------- signature element: usage allocation bar ---------- */
+/* ---------- usage allocation bar ---------- */
 .usage-bar-track{
   display:flex;
   width:100%;
@@ -214,17 +206,11 @@ button:focus-visible, .menu-item:focus-visible{
   background:#e2e8f0;
   box-shadow:inset 0 1px 2px rgba(0,0,0,.04);
 }
-.usage-bar-seg{
-  height:100%;
-  transition:width .6s cubic-bezier(.16,1,.3,1);
-}
+.usage-bar-seg{ height:100%; transition:width .6s cubic-bezier(.16,1,.3,1); }
 .usage-bar-seg.seg-available{ background:linear-gradient(90deg,#34d399,#10b981); }
 .usage-bar-seg.seg-borrowed{ background:linear-gradient(90deg,#fb7185,#e11d48); }
 .usage-bar-seg.seg-overdue{ background:linear-gradient(90deg,#f59e0b,#b45309); }
-
-.usage-legend-dot{
-  display:inline-block; width:9px; height:9px; border-radius:99px; margin-right:6px;
-}
+.usage-legend-dot{ display:inline-block; width:9px; height:9px; border-radius:99px; margin-right:6px; }
 
 /* ---------- modals ---------- */
 .modal-backdrop{
@@ -235,21 +221,11 @@ button:focus-visible, .menu-item:focus-visible{
   align-items:center; justify-content:center;
 }
 .modal-backdrop.active{ display:flex; }
-/* การ์ดของโมดัลทุกอันต้องมีขอบเขตที่มองเห็นชัดเจนเสมอ ไม่ว่าจะโหมดสว่างหรือมืด ป้องกันไม่ให้ดูเหมือน "ล้นขอบ"/ไม่มีขอบเขต */
-.modal-backdrop > div{
-  box-shadow:0 25px 60px -12px rgba(0,0,0,.45), 0 0 0 1px rgba(15,23,42,.06);
-}
-
-@keyframes scaleIn{
-  from{ opacity:0; transform:scale(.95) translateY(6px); }
-  to{ opacity:1; transform:scale(1) translateY(0); }
-}
+.modal-backdrop > div{ box-shadow:0 25px 60px -12px rgba(0,0,0,.45), 0 0 0 1px rgba(15,23,42,.06); }
+@keyframes scaleIn{ from{ opacity:0; transform:scale(.95) translateY(6px); } to{ opacity:1; transform:scale(1) translateY(0); } }
 .animate-scale{ animation:scaleIn .18s ease-out; }
-
-/* ---------- badges / status pill hover polish ---------- */
 .badge-pill{ display:inline-flex; align-items:center; gap:4px; }
 
-/* ---------- print ---------- */
 @media print{
   body *{ visibility:hidden; }
   #print-section, #print-section *{ visibility:visible; }
@@ -257,18 +233,12 @@ button:focus-visible, .menu-item:focus-visible{
   body.print-mode-receipt #print-section{ display:block !important; position:absolute; top:0; left:0; width:100%; }
   body.print-mode-tracking #print-tracking-section{ display:block !important; position:absolute; top:0; left:0; width:100%; }
 }
-
-/* ---------- misc utility ---------- */
 .fade-in{ animation:fadeIn .25s ease-out; }
 @keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
-
-.empty-state{
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:.5rem; padding:2.5rem 1rem; color:#94a3b8;
-}
+.empty-state{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.5rem; padding:2.5rem 1rem; color:#94a3b8; }
 
 /* ===================================================================
-   🌙 โหมดมืด (Dark Mode) — ครอบคลุมโครงสร้างหลักและคลาส Tailwind ที่ใช้ทั่วระบบ
+   Dark Mode
    =================================================================== */
 html[data-theme="dark"] body{ background:var(--app-bg); color:var(--app-text); }
 html[data-theme="dark"] .bg-slate-50{ background-color:var(--app-bg) !important; }
@@ -278,14 +248,12 @@ html[data-theme="dark"] .bg-gray-50\/70{ background-color:var(--app-surface-2) !
 html[data-theme="dark"] .bg-gray-100{ background-color:#1c2942 !important; }
 html[data-theme="dark"] .bg-gray-200{ background-color:#2a3854 !important; }
 html[data-theme="dark"] .bg-white{ background-color:var(--app-surface) !important; }
-
 html[data-theme="dark"] .border-gray-50,
 html[data-theme="dark"] .border-gray-100,
 html[data-theme="dark"] .border-gray-200,
 html[data-theme="dark"] .border-t,
 html[data-theme="dark"] .border-b,
 html[data-theme="dark"] .border{ border-color:var(--app-border) !important; }
-
 html[data-theme="dark"] .text-gray-900,
 html[data-theme="dark"] .text-gray-800,
 html[data-theme="dark"] .text-slate-800{ color:var(--app-text-strong) !important; }
@@ -293,39 +261,22 @@ html[data-theme="dark"] .text-gray-700,
 html[data-theme="dark"] .text-gray-600{ color:var(--app-text) !important; }
 html[data-theme="dark"] .text-gray-500,
 html[data-theme="dark"] .text-gray-400{ color:var(--app-text-soft) !important; }
-
 html[data-theme="dark"] #sidebar{ background:var(--app-surface); border-color:var(--app-border); box-shadow:1px 0 0 rgba(0,0,0,.2); }
 html[data-theme="dark"] #sidebar .bg-indigo-50\/30{ background-color:rgba(99,102,241,.12) !important; }
 html[data-theme="dark"] header.bg-white{ background:var(--app-surface); }
-html[data-theme="dark"] .menu-item.active{
-  background:linear-gradient(135deg, rgba(99,102,241,.18) 0%, rgba(139,92,246,.14) 100%);
-  color:#c7d2fe;
-}
+html[data-theme="dark"] .menu-item.active{ background:linear-gradient(135deg, rgba(99,102,241,.18) 0%, rgba(139,92,246,.14) 100%); color:#c7d2fe; }
 html[data-theme="dark"] .menu-item:hover{ background:rgba(148,163,184,.08); color:var(--app-text-strong); }
-
 html[data-theme="dark"] input,
 html[data-theme="dark"] select,
-html[data-theme="dark"] textarea{
-  background-color:var(--app-surface-2) !important;
-  border-color:var(--app-border) !important;
-  color:var(--app-text-strong) !important;
-}
+html[data-theme="dark"] textarea{ background-color:var(--app-surface-2) !important; border-color:var(--app-border) !important; color:var(--app-text-strong) !important; }
 html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder{ color:var(--app-text-soft); }
 html[data-theme="dark"] input[readonly]{ background-color:#0d1524 !important; color:var(--app-text-soft) !important; }
-
 html[data-theme="dark"] table thead{ background:var(--app-surface-2) !important; }
 html[data-theme="dark"] .table-report tbody tr:hover{ background-color:rgba(148,163,184,.06) !important; }
 html[data-theme="dark"] .divide-gray-100 > :not([hidden]) ~ :not([hidden]){ border-color:var(--app-border) !important; }
-
 html[data-theme="dark"] .modal-backdrop{ background:rgba(0,0,0,.7); }
-html[data-theme="dark"] .modal-backdrop > div{
-  background:var(--app-surface);
-  border:1px solid var(--app-border) !important;
-  box-shadow:0 25px 60px -12px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04);
-}
-
-/* การ์ดสถิติ / KPI / กลุ่มพาสเทล ปรับความเข้มให้อ่านง่ายบนพื้นมืดแต่ยังคงเฉดสีเดิมไว้ */
+html[data-theme="dark"] .modal-backdrop > div{ background:var(--app-surface); border:1px solid var(--app-border) !important; box-shadow:0 25px 60px -12px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04); }
 html[data-theme="dark"] [class*="bg-blue-50"]{ background-color:rgba(59,130,246,.14) !important; }
 html[data-theme="dark"] [class*="bg-indigo-50"]{ background-color:rgba(99,102,241,.14) !important; }
 html[data-theme="dark"] [class*="bg-emerald-50"]{ background-color:rgba(16,185,129,.14) !important; }
@@ -343,24 +294,16 @@ html[data-theme="dark"] [class*="bg-slate-100"]{ background-color:var(--app-surf
 html[data-theme="dark"] [class*="bg-emerald-100"],
 html[data-theme="dark"] [class*="bg-indigo-100"],
 html[data-theme="dark"] [class*="bg-rose-100"]{ background-color:rgba(148,163,184,.16) !important; }
-
 html[data-theme="dark"] ::-webkit-scrollbar-thumb{ background:#334155; }
 html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover{ background:#475569; }
-
-/* ปุ่มพิมพ์เอกสาร/ใบสัญญายังคงต้องแสดงผลโทนสว่างเสมอ ไม่ว่าจะเปิดโหมดมืดอยู่หรือไม่ */
 @media print{
   html[data-theme="dark"] #print-section,
-  html[data-theme="dark"] #print-tracking-section{
-    background:#fff !important; color:#000 !important;
-  }
+  html[data-theme="dark"] #print-tracking-section{ background:#fff !important; color:#000 !important; }
 }
 
-/* v4.1.1 lifecycle unavailable segment */
 .seg-unavailable{background:#94a3b8;}
 
-
-/* v4.1.2 — Maintenance actions use explicit colors so controls stay visible even when
-   the legacy Tailwind 2 CDN does not provide every newer palette utility. */
+/* v4.1.2 — Maintenance actions */
 .maintenance-action{
   width:100%; min-height:44px; padding:10px 16px;
   display:flex; align-items:center; justify-content:center; gap:6px;
@@ -391,7 +334,6 @@ html[data-theme="dark"] .maintenance-action-cyan{ background:#12343d !important;
 html[data-theme="dark"] .maintenance-action-rose{ background:#3b1722 !important; color:#fda4af !important; border-color:#9f1239 !important; }
 html[data-theme="dark"] .maintenance-action-slate{ background:#1e293b !important; color:#cbd5e1 !important; border-color:#475569 !important; }
 
-
 /* ---------- v4.2.0 LINE Rich Menu Manager ---------- */
 #line-rich-menu-manager .line-rm-action-row{transition:border-color .15s ease,background .15s ease;}
 #line-rich-menu-manager .line-rm-action-row:focus-within{border-color:#a7f3d0;background:#ecfdf5;}
@@ -399,3 +341,30 @@ html[data-theme="dark"] .maintenance-action-slate{ background:#1e293b !important
 #line-rm-preview{max-height:420px;}
 html[data-theme="dark"] #line-rich-menu-manager .line-rm-action-row{background:var(--app-surface-2);border-color:var(--app-border);}
 html[data-theme="dark"] #line-rich-menu-manager .line-rm-action-row:focus-within{border-color:#065f46;background:rgba(16,185,129,.08);}
+
+/* ---------- v4.2.1 Rich Menu publish hotfix ---------- */
+#line-rm-create-btn{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:8px !important;
+  width:100% !important;
+  min-height:50px !important;
+  margin-top:16px !important;
+  padding:12px 18px !important;
+  border:1px solid #047857 !important;
+  border-radius:12px !important;
+  background:#059669 !important;
+  color:#ffffff !important;
+  font-weight:800 !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  cursor:pointer !important;
+  box-shadow:0 8px 20px -10px rgba(5,150,105,.65) !important;
+  position:relative !important;
+  z-index:2 !important;
+}
+#line-rm-create-btn *{color:#ffffff !important;}
+#line-rm-create-btn:hover{background:#047857 !important;border-color:#065f46 !important;}
+#line-rm-create-btn:active{transform:translateY(1px);}
+#line-rm-create-btn:disabled{background:#94a3b8 !important;border-color:#94a3b8 !important;cursor:not-allowed !important;opacity:.75 !important;}
