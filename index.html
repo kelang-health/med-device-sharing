@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=3.7.0" />
+    <link rel="stylesheet" href="style.css?v=3.8.0" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -281,8 +281,14 @@
                     </div>
                     <select id="equip-status-filter" onchange="equipCurrentPage=1; renderEquipmentTable();" class="border border-gray-200 px-3 py-2 rounded-xl bg-white text-xs w-full md:w-56 focus:outline-none">
                         <option value="all">📁 แสดงสถานะทั้งหมด</option>
-                        <option value="available">🟢 พร้อมใช้งาน (ว่าง)</option>
-                        <option value="borrowed">🔴 ถูกยืมไปใช้งาน</option>
+                        <option value="available">🟢 พร้อมใช้งาน</option>
+                        <option value="borrowed">🔴 กำลังถูกยืม</option>
+                        <option value="cleaning">🧼 รอทำความสะอาด</option>
+                        <option value="inspection">🔎 รอตรวจสอบ</option>
+                        <option value="maintenance">🛠️ ส่งซ่อม/บำรุงรักษา</option>
+                        <option value="damaged">⚠️ ชำรุด</option>
+                        <option value="lost">❗ สูญหาย</option>
+                        <option value="retired">⛔ ปลดระวาง</option>
                     </select>
                 </div>
 
@@ -415,12 +421,12 @@
                 <div class="bg-white border border-indigo-100 rounded-2xl shadow-sm p-5 max-w-2xl">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                            <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2"><i class="fa-solid fa-database text-indigo-500"></i> โครงสร้างข้อมูลระบบ v3.6</h4>
+                            <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2"><i class="fa-solid fa-database text-indigo-500"></i> โครงสร้างข้อมูลระบบ v3.8.0</h4>
                             <p class="text-[11px] text-gray-400 mt-1">เพิ่มเฉพาะคอลัมน์/ชีตที่ขาดสำหรับ Role, Audit, VOID และ LINE โดยไม่ลบ ไม่ clear และไม่เขียนทับข้อมูลเดิม</p>
                             <div id="schema-status" class="text-[11px] text-gray-500 mt-2">กดตรวจสอบหรือเปิดหน้านี้เพื่อดูสถานะโครงสร้าง</div>
                         </div>
                         <button onclick="upgradeSchemaV35()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 flex-shrink-0">
-                            <i class="fa-solid fa-database"></i> อัปเกรดโครงสร้าง v3.6
+                            <i class="fa-solid fa-database"></i> อัปเกรดโครงสร้าง v3.8.0
                         </button>
                     </div>
                 </div>
@@ -479,6 +485,7 @@
                             <label class="flex items-center gap-2 rounded-lg border border-white bg-white p-2.5 cursor-pointer"><input id="line-event-eq-add" type="checkbox" class="accent-emerald-600 h-4 w-4"> มีการเพิ่มอุปกรณ์</label>
                             <label class="flex items-center gap-2 rounded-lg border border-white bg-white p-2.5 cursor-pointer"><input id="line-event-void" type="checkbox" class="accent-emerald-600 h-4 w-4"> มีการ VOID รายการยืม</label>
                             <label class="flex items-center gap-2 rounded-lg border border-white bg-white p-2.5 cursor-pointer"><input id="line-event-eq-inactive" type="checkbox" class="accent-emerald-600 h-4 w-4"> มีการปิดใช้งานอุปกรณ์</label>
+                            <label class="flex items-center gap-2 rounded-lg border border-white bg-white p-2.5 cursor-pointer"><input id="line-event-eq-status" type="checkbox" class="accent-emerald-600 h-4 w-4"> เปลี่ยนสถานะ/ส่งซ่อมอุปกรณ์</label>
                         </div>
                     </div>
 
@@ -634,7 +641,7 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v3.7.0 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v3.8.0 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
@@ -864,6 +871,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=3.7.0"></script>
+    <script src="script.js?v=3.8.0"></script>
 </body>
 </html>
