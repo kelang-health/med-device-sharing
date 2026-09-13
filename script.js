@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.1.0 Backup & Log Maintenance)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.1.1 Stabilization & Safety Fix)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -58,6 +58,9 @@ function clearAuthSession() {
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
+function escapeJsSingleQuoted(value) {
+    return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/</g, '\\x3C').replace(/>/g, '\\x3E');
+}
 function safeCsvCell(value) {
     let cell = value === null || value === undefined ? '' : String(value);
     if (/^[=+@-]/.test(cell)) cell = "'" + cell;
@@ -94,6 +97,7 @@ let mapLayerControl = null;
 let borrowPhotos = []; // เก็บรูปหลักฐานที่แนบในฟอร์มยืม (base64 data URL) สูงสุด 3 รูป
 let editingBorrowId = null; // ถ้าไม่ใช่ null แปลว่ากำลังอยู่ในโหมด "แก้ไขรายการยืมเดิม" (ไม่ใช่สร้างใหม่)
 let existingBorrowImageIds = []; // รหัสไฟล์รูปภาพเดิมที่แนบไว้แล้ว (ตอนแก้ไขรายการ) ที่ผู้ใช้ยังต้องการเก็บไว้
+const borrowImageCache = new Map();
 
 async function run(action, payload = {}) {
     const sessionToken = getSessionToken();
@@ -412,82 +416,45 @@ function isNearDueBorrow(row) {
 function renderDashboardStats() {
     const totalEq = state.equipments.length;
     const activeBorrows = getActiveBorrows();
+    const borrowedSet = getBorrowedEquipmentIdSet();
+    const lifecycleCounts = { Available:0, Borrowed:0, Cleaning:0, Inspection:0, Maintenance:0, Damaged:0, Lost:0, Retired:0 };
+    state.equipments.forEach(eq => { const s=getEquipmentStatus(eq,borrowedSet); lifecycleCounts[s]=(lifecycleCounts[s]||0)+1; });
 
-    let borrowedCount;
-    let availableCount;
-    let overdueCount;
-    let nearDueCount;
-    let extendedCount;
-    let totalLogs;
+    let borrowedCount, availableCount, overdueCount, nearDueCount, extendedCount, totalLogs;
+    borrowedCount = activeBorrows.length;
+    availableCount = lifecycleCounts.Available || 0;
+    const unavailableCount = Math.max(0,totalEq-availableCount-borrowedCount);
 
     if (state.isAdmin) {
-        borrowedCount = activeBorrows.length;
-        availableCount = Math.max(0, totalEq - borrowedCount);
         overdueCount = activeBorrows.filter(isOverdueBorrow).length;
         nearDueCount = activeBorrows.filter(r => !isOverdueBorrow(r) && isNearDueBorrow(r)).length;
         extendedCount = activeBorrows.filter(r => getExtensionCount(r) > 0).length;
         totalLogs = state.data.length;
     } else if (state.publicSummary) {
-        borrowedCount = Number(state.publicSummary.borrowed || 0);
-        availableCount = Number(state.publicSummary.available ?? Math.max(0, totalEq - borrowedCount));
+        borrowedCount = Number(state.publicSummary.borrowed || borrowedCount);
+        availableCount = Number(state.publicSummary.available ?? availableCount);
         overdueCount = Number(state.publicSummary.overdue || 0);
         nearDueCount = Number(state.publicSummary.nearDue || 0);
         extendedCount = Number(state.publicSummary.extended || 0);
         totalLogs = Number(state.publicSummary.totalBorrowRecords || 0);
-    } else {
-        borrowedCount = activeBorrows.length;
-        availableCount = Math.max(0, totalEq - borrowedCount);
-        overdueCount = 0;
-        nearDueCount = 0;
-        extendedCount = 0;
-        totalLogs = 0;
-    }
+    } else { overdueCount=0;nearDueCount=0;extendedCount=0;totalLogs=0; }
 
-    const setText = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = value;
-    };
-    setText('stat-total-eq', totalEq);
-    setText('stat-borrow-eq', borrowedCount);
-    setText('stat-avail-eq', availableCount);
-    setText('stat-overdue-eq', overdueCount);
-    setText('stat-near-due', nearDueCount);
-    setText('stat-extended-eq', extendedCount);
-    setText('stat-total-logs', totalLogs);
-
-    renderUsageAllocationBar(totalEq, availableCount, borrowedCount, overdueCount);
-    updateSidebarBorrowBadge(borrowedCount);
-    updateSidebarTrackingBadge(overdueCount);
+    const setText=(id,value)=>{const el=document.getElementById(id);if(el)el.innerText=value;};
+    setText('stat-total-eq',totalEq);setText('stat-borrow-eq',borrowedCount);setText('stat-avail-eq',availableCount);setText('stat-overdue-eq',overdueCount);setText('stat-near-due',nearDueCount);setText('stat-extended-eq',extendedCount);setText('stat-total-logs',totalLogs);
+    renderUsageAllocationBar(totalEq,availableCount,borrowedCount,overdueCount,Math.max(0,totalEq-availableCount-borrowedCount));
+    updateSidebarBorrowBadge(borrowedCount);updateSidebarTrackingBadge(overdueCount);
 }
 
 // 🎯 วาดแถบสัดส่วนสถานะการใช้งานครุภัณฑ์ (สรุปยืม-คืน หักลบ แบบเห็นภาพรวมทันที)
-function renderUsageAllocationBar(totalEq, availableCount, borrowedCount, overdueCount) {
-    const segAvail = document.getElementById('usage-seg-available');
-    const segBorrow = document.getElementById('usage-seg-borrowed');
-    const segOverdue = document.getElementById('usage-seg-overdue');
-    const caption = document.getElementById('usage-bar-caption');
-    if (!segAvail || !segBorrow || !segOverdue) return;
-
-    const normalBorrowed = Math.max(borrowedCount - overdueCount, 0);
-    const safeTotal = totalEq > 0 ? totalEq : 1;
-
-    const pctAvail = (availableCount / safeTotal) * 100;
-    const pctBorrow = (normalBorrowed / safeTotal) * 100;
-    const pctOverdue = (overdueCount / safeTotal) * 100;
-
-    segAvail.style.width = pctAvail + '%';
-    segBorrow.style.width = pctBorrow + '%';
-    segOverdue.style.width = pctOverdue + '%';
-
-    document.getElementById('usage-legend-avail').innerText = availableCount;
-    document.getElementById('usage-legend-borrow').innerText = borrowedCount;
-    document.getElementById('usage-legend-overdue').innerText = overdueCount;
-
-    if (totalEq === 0) {
-        caption.innerText = 'ยังไม่มีข้อมูลครุภัณฑ์ในคลัง กรุณาลงทะเบียนอุปกรณ์เพื่อเริ่มใช้งานระบบ';
-    } else {
-        caption.innerText = `จากครุภัณฑ์ทั้งหมด ${totalEq} ชิ้น: พร้อมใช้งาน ${availableCount} ชิ้น (${pctAvail.toFixed(0)}%), อยู่ระหว่างยืมใช้งาน ${borrowedCount} ชิ้น (${(pctBorrow + pctOverdue).toFixed(0)}%) ในจำนวนนี้เกินกำหนดส่งคืน ${overdueCount} ชิ้น`;
-    }
+function renderUsageAllocationBar(totalEq, availableCount, borrowedCount, overdueCount, unavailableCount) {
+    const segAvail=document.getElementById('usage-seg-available'),segBorrow=document.getElementById('usage-seg-borrowed'),segOverdue=document.getElementById('usage-seg-overdue'),segUnavailable=document.getElementById('usage-seg-unavailable'),caption=document.getElementById('usage-bar-caption');
+    if(!segAvail||!segBorrow||!segOverdue)return;
+    const normalBorrowed=Math.max(borrowedCount-overdueCount,0),safeTotal=totalEq>0?totalEq:1,unavailable=Math.max(0,Number(unavailableCount||0));
+    const pctAvail=availableCount/safeTotal*100,pctBorrow=normalBorrowed/safeTotal*100,pctOverdue=overdueCount/safeTotal*100,pctUnavailable=unavailable/safeTotal*100;
+    segAvail.style.width=pctAvail+'%';segBorrow.style.width=pctBorrow+'%';segOverdue.style.width=pctOverdue+'%';if(segUnavailable)segUnavailable.style.width=pctUnavailable+'%';
+    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.innerText=v;};set('usage-legend-avail',availableCount);set('usage-legend-borrow',borrowedCount);set('usage-legend-overdue',overdueCount);set('usage-legend-unavailable',unavailable);
+    if(totalEq===0)caption.innerText='ยังไม่มีข้อมูลครุภัณฑ์ในคลัง กรุณาลงทะเบียนอุปกรณ์เพื่อเริ่มใช้งานระบบ';
+    else caption.innerText=`จากครุภัณฑ์ทั้งหมด ${totalEq} ชิ้น: พร้อมใช้งาน ${availableCount} ชิ้น (${pctAvail.toFixed(0)}%), กำลังยืม ${borrowedCount} ชิ้น (${((borrowedCount/safeTotal)*100).toFixed(0)}%), ไม่พร้อมใช้/ซ่อม/ตรวจ ${unavailable} ชิ้น (${pctUnavailable.toFixed(0)}%), เกินกำหนด ${overdueCount} ชิ้น`;
 }
 
 // 🔔 อัปเดตตัวเลขแจ้งเตือนจำนวนรายการยืมค้างอยู่บนเมนูข้างซ้าย
@@ -527,61 +494,10 @@ function getCategoryVisual(name) {
 }
 
 function renderEquipmentTypeGrid() {
-    const grid = document.getElementById('equipment-type-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    const groups = {};
-
-    state.equipments.forEach(eq => {
-        let name = eq.EquipmentName || eq[1];
-        name = name ? String(name).trim() : 'อุปกรณ์ทั่วไป';
-        if (!groups[name]) groups[name] = { total: 0, available: 0, borrowed: 0 };
-        groups[name].total++;
-    });
-
-    const activeBorrows = getActiveBorrows();
-
-    activeBorrows.forEach(r => {
-        const borrowEqId = String(r.EquipmentID || r[5]).trim();
-        const matchedEq = state.equipments.find(e => String(e.EquipmentID || e[0]).trim() === borrowEqId);
-        if (matchedEq) {
-            let name = matchedEq.EquipmentName || matchedEq[1];
-            name = name ? String(name).trim() : 'อุปกรณ์ทั่วไป';
-            if (groups[name]) groups[name].borrowed++;
-        }
-    });
-
-    for (let name in groups) {
-        groups[name].available = groups[name].total - groups[name].borrowed;
-    }
-
-    if (Object.keys(groups).length === 0) {
-        grid.innerHTML = `<div class="col-span-full empty-state"><i class="fa-solid fa-box-open text-3xl"></i><span>ยังไม่มีข้อมูลครุภัณฑ์ในคลัง</span></div>`;
-        return;
-    }
-
-    for (let name in groups) {
-        const { icon, solid, pastel, border, text } = getCategoryVisual(name);
-        const g = groups[name];
-        const card = document.createElement('div');
-        card.className = `cat-card border p-4 rounded-2xl shadow-sm flex items-center justify-between transition-all hover:scale-[1.02] hover:shadow-lg`;
-        card.style.backgroundColor = pastel;
-        card.style.borderColor = border;
-        card.style.color = text;
-        card.innerHTML = `
-            <div class="flex items-center gap-3 overflow-hidden">
-                <div class="cat-badge w-12 h-12 flex items-center justify-center rounded-2xl text-white flex-shrink-0" style="background-color:${solid}; box-shadow:0 6px 16px -6px ${solid}99, 0 0 0 4px ${solid}33;">
-                    <i class="fa-solid ${icon} text-xl"></i>
-                </div>
-                <div class="overflow-hidden">
-                    <h5 class="font-bold text-xs text-gray-700 truncate">${name}</h5>
-                    <p class="text-[11px] text-gray-500 mt-0.5">ทั้งหมด: ${g.total} | คงเหลือว่าง: <span class="text-emerald-600 font-bold">${g.available}</span></p>
-                </div>
-            </div>
-            <div class="text-right flex-shrink-0"><span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background-color:#ffe4e6; color:#be123c;">ยืมอยู่: ${g.borrowed}</span></div>
-        `;
-        grid.appendChild(card);
-    }
+    const grid=document.getElementById('equipment-type-grid');if(!grid)return;grid.innerHTML='';const groups={},borrowedSet=getBorrowedEquipmentIdSet();
+    state.equipments.forEach(eq=>{let name=eq.EquipmentName||eq[1];name=name?String(name).trim():'อุปกรณ์ทั่วไป';if(!groups[name])groups[name]={total:0,available:0,borrowed:0,attention:0};groups[name].total++;const s=getEquipmentStatus(eq,borrowedSet);if(s==='Available')groups[name].available++;else if(s==='Borrowed')groups[name].borrowed++;else groups[name].attention++;});
+    if(!Object.keys(groups).length){grid.innerHTML=`<div class="col-span-full empty-state"><i class="fa-solid fa-box-open text-3xl"></i><span>ยังไม่มีข้อมูลครุภัณฑ์ในคลัง</span></div>`;return;}
+    for(const name in groups){const {icon,solid,pastel,border,text}=getCategoryVisual(name),g=groups[name],card=document.createElement('div');card.className='cat-card border p-4 rounded-2xl shadow-sm flex items-center justify-between transition-all hover:scale-[1.02] hover:shadow-lg';card.style.backgroundColor=pastel;card.style.borderColor=border;card.style.color=text;card.innerHTML=`<div class="flex items-center gap-3 overflow-hidden"><div class="cat-badge w-12 h-12 flex items-center justify-center rounded-2xl text-white flex-shrink-0" style="background-color:${solid}; box-shadow:0 6px 16px -6px ${solid}99, 0 0 0 4px ${solid}33;"><i class="fa-solid ${icon} text-xl"></i></div><div class="overflow-hidden"><h5 class="font-bold text-xs text-gray-700 truncate">${escapeHtml(name)}</h5><p class="text-[11px] text-gray-500 mt-0.5">ทั้งหมด: ${g.total} | พร้อมใช้: <span class="text-emerald-600 font-bold">${g.available}</span>${g.attention?` | ไม่พร้อม: <span class="text-slate-500 font-bold">${g.attention}</span>`:''}</p></div></div><div class="text-right flex-shrink-0"><span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background-color:#ffe4e6; color:#be123c;">ยืมอยู่: ${g.borrowed}</span></div>`;grid.appendChild(card);}
 }
 
 // เรนเดอร์ตารางสรุปประวัติภาพรวม (แดชบอร์ดสาธารณะล่างสุด) พร้อมค้นหาและแบ่งหน้าจริง
@@ -621,12 +537,12 @@ function renderBorrowTable() {
             const borrowDateFormatted = rawDate ? new Date(rawDate).toLocaleDateString('th-TH') : '-';
 
             tr.innerHTML = `
-                <td class="p-3 font-semibold text-gray-700">${item.EquipmentID || item[5] || '-'}</td>
-                <td class="p-3 font-medium">${item.PatientName || item.BorrowerName || item[13] || item[1] || '-'}</td>
-                <td class="p-3 font-mono text-gray-400">${item.CitizenID || item[2] || '-'}</td>
-                <td class="p-3">${item.Community || item[4] || '-'}</td>
+                <td class="p-3 font-semibold text-gray-700">${escapeHtml(item.EquipmentID || item[5] || '-')}</td>
+                <td class="p-3 font-medium">${escapeHtml(item.PatientName || item.BorrowerName || item[13] || item[1] || '-')}</td>
+                <td class="p-3 font-mono text-gray-400">${escapeHtml(item.CitizenID || item[2] || '-')}</td>
+                <td class="p-3">${escapeHtml(item.Community || item[4] || '-')}</td>
                 <td class="p-3">${borrowDateFormatted}</td>
-                <td class="p-3 font-mono text-gray-400">${item.Phone || item[12] || '-'}</td>
+                <td class="p-3 font-mono text-gray-400">${escapeHtml(item.Phone || item[12] || '-')}</td>
                 <td class="p-3">${statusBadge}</td>
             `;
             tbody.appendChild(tr);
@@ -726,28 +642,28 @@ function renderAdminBorrowContainer() {
             const actionButtons = `
                 <div class="flex items-center justify-center gap-1.5">
                     ${photoCount > 0 ?
-                        `<button onclick="viewBorrowImages('${entryId}')" class="relative bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="ดูรูปภาพหลักฐานแนบ (${photoCount} รูป)"><i class="fa-solid fa-camera text-xs"></i><span class="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full">${photoCount}</span></button>` :
+                        `<button onclick="viewBorrowImages('${escapeJsSingleQuoted(entryId)}')" class="relative bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="ดูรูปภาพหลักฐานแนบ (${photoCount} รูป)"><i class="fa-solid fa-camera text-xs"></i><span class="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full">${photoCount}</span></button>` :
                         `<span class="bg-gray-50 text-gray-300 p-1.5 rounded-lg" title="ไม่มีรูปภาพหลักฐานแนบ"><i class="fa-solid fa-camera text-xs"></i></span>`
                     }
-                    <button onclick="printLoanReceipt('${entryId}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 p-1.5 rounded-lg transition" title="พิมพ์ใบอนุมัติสัญญาค้ำประกันคลัง"><i class="fa-solid fa-print text-xs"></i></button>
+                    <button onclick="printLoanReceipt('${escapeJsSingleQuoted(entryId)}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 p-1.5 rounded-lg transition" title="พิมพ์ใบอนุมัติสัญญาค้ำประกันคลัง"><i class="fa-solid fa-print text-xs"></i></button>
                     ${(status === 'Borrowed' || status === 'ยืม') ?
-                        `<button onclick="editBorrowRecord('${entryId}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="แก้ไขรายการนี้ (กรณีบันทึกผิด)"><i class="fa-solid fa-pen text-xs"></i></button>` : ''
+                        `<button onclick="editBorrowRecord('${escapeJsSingleQuoted(entryId)}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="แก้ไขรายการนี้ (กรณีบันทึกผิด)"><i class="fa-solid fa-pen text-xs"></i></button>` : ''
                     }
                     ${(status === 'Borrowed' || status === 'ยืม') ?
-                        `<button onclick="processReturnItem('${entryId}')" class="bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold text-[11px] px-2.5 py-1 rounded-lg transition">คืน</button>` : ''
+                        `<button onclick="processReturnItem('${escapeJsSingleQuoted(entryId)}')" class="bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold text-[11px] px-2.5 py-1 rounded-lg transition">คืน</button>` : ''
                     }
-                    <button onclick="deleteBorrowRecord('${entryId}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    <button onclick="deleteBorrowRecord('${escapeJsSingleQuoted(entryId)}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
                 </div>
             `;
 
             tableStructureHtml += `
                 <tr class="hover:bg-gray-50/70 transition-all duration-100">
-                    <td class="p-3 font-semibold text-gray-700">${eqId}</td>
-                    <td class="p-3 font-medium">${patientName}</td>
-                    <td class="p-3 font-mono">${citizenId}</td>
-                    <td class="p-3">${community}</td>
+                    <td class="p-3 font-semibold text-gray-700">${escapeHtml(eqId)}</td>
+                    <td class="p-3 font-medium">${escapeHtml(patientName)}</td>
+                    <td class="p-3 font-mono">${escapeHtml(citizenId)}</td>
+                    <td class="p-3">${escapeHtml(community)}</td>
                     <td class="p-3">${dateFormatted}</td>
-                    <td class="p-3 font-mono">${phone}</td>
+                    <td class="p-3 font-mono">${escapeHtml(phone)}</td>
                     <td class="p-3">${statusBadge}</td>
                     <td class="p-3 print:hidden">${actionButtons}</td>
                 </tr>
@@ -815,7 +731,7 @@ function printLoanReceipt(entryId) {
     if (agencyText && document.getElementById('print-agency-name')) {
         const title1 = agencyText['ข้อมูล 1'] || agencyText[1] || '';
         const title2 = agencyText['ข้อมูล 2'] || agencyText[2] || '';
-        document.getElementById('print-agency-name').innerHTML = title2 ? `${title1}<br>${title2}` : title1;
+        document.getElementById('print-agency-name').innerHTML = title2 ? `${escapeHtml(title1)}<br>${escapeHtml(title2)}` : escapeHtml(title1);
     }
 
     // ✍️ รันคำสั่งกระจายข้อมูลลงสู่แผ่น ID ในชุดแบบฟอร์มตัวใหม่ที่กำหนดสไตล์สีน้ำเงินเข้มและตัวหนา
@@ -894,19 +810,19 @@ function buildTrackingRows(rows, forPrint = false) {
             : (nearDue ? 'font-bold text-amber-700 bg-amber-50/60' : 'font-semibold text-gray-700');
 
         const cells = `
-            <td class="border border-gray-200 p-2 font-semibold text-orange-600">${eqId}</td>
-            <td class="border border-gray-200 p-2 text-left">${borrowerDetails}</td>
+            <td class="border border-gray-200 p-2 font-semibold text-orange-600">${escapeHtml(eqId)}</td>
+            <td class="border border-gray-200 p-2 text-left">${escapeHtml(borrowerDetails)}</td>
             <td class="border border-gray-200 p-2 text-gray-500">กำลังยืมใช้งาน</td>
             <td class="border border-gray-200 p-2">${extensionText}</td>
             <td class="border border-gray-200 p-2 text-emerald-600">${borrowDateStr}</td>
             <td class="border border-gray-200 p-2 ${dueClass}">${dueDateStr}</td>
-            <td class="border border-gray-200 p-2 font-mono">${phone}</td>
+            <td class="border border-gray-200 p-2 font-mono">${escapeHtml(phone)}</td>
             <td class="border border-gray-200 p-2">${signalBadge}</td>`;
 
         const actionCell = forPrint ? '' : `
             <td class="border border-gray-200 p-2 print:hidden">
                 ${overdue
-                    ? `<button onclick="openExtendBorrowPrompt('${entryId}')" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-sm transition whitespace-nowrap"><i class="fa-solid fa-calendar-plus mr-1"></i>ยืมต่อ</button>`
+                    ? `<button onclick="openExtendBorrowPrompt('${escapeJsSingleQuoted(entryId)}')" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-sm transition whitespace-nowrap"><i class="fa-solid fa-calendar-plus mr-1"></i>ยืมต่อ</button>`
                     : '<span class="text-gray-300">—</span>'}
             </td>`;
 
@@ -1005,8 +921,8 @@ async function openExtendBorrowPrompt(entryId) {
         html: `
             <div class="text-left text-xs space-y-3">
                 <div class="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                    <div><b>อุปกรณ์:</b> ${eqId}</div>
-                    <div><b>ผู้ยืม/ผู้ป่วย:</b> ${patient}</div>
+                    <div><b>อุปกรณ์:</b> ${escapeHtml(eqId)}</div>
+                    <div><b>ผู้ยืม/ผู้ป่วย:</b> ${escapeHtml(patient)}</div>
                     <div><b>กำหนดเดิม:</b> <span class="text-rose-600 font-bold">${dueText}</span></div>
                     <div><b>เคยยืมต่อ:</b> ${getExtensionCount(row)} ครั้ง</div>
                 </div>
@@ -1065,7 +981,7 @@ async function openExtendBorrowPrompt(entryId) {
     } else if (res.schemaUpgradeRequired) {
         Swal.fire({
             title: 'ต้องอัปเกรดโครงสร้างก่อน',
-            text: res.error || 'กรุณาไปที่เมนูตั้งค่าแล้วกดอัปเกรดโครงสร้าง v3.8.0',
+            text: res.error || 'กรุณาไปที่เมนูตั้งค่าแล้วกดอัปเกรดโครงสร้าง v4.1.1',
             icon: 'warning',
             confirmButtonText: 'ไปหน้าตั้งค่า'
         }).then(r => { if (r.isConfirmed) switchTab('settings'); });
@@ -1142,14 +1058,14 @@ function renderEquipmentTable() {
             const statusBadge = `<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full border ${meta.cls}"><i class="fa-solid ${meta.icon} mr-1"></i>${meta.label}</span>`;
 
             tr.innerHTML = `
-                <td class="p-3 font-semibold text-gray-700">${item.EquipmentID || item[0] || '-'}</td>
-                <td class="p-3 font-medium text-gray-800">${item.EquipmentName || item[1] || '-'}</td>
-                <td class="p-3 font-mono text-gray-400">${item.SerialNumber || item[2] || '-'}</td>
+                <td class="p-3 font-semibold text-gray-700">${escapeHtml(item.EquipmentID || item[0] || '-')}</td>
+                <td class="p-3 font-medium text-gray-800">${escapeHtml(item.EquipmentName || item[1] || '-')}</td>
+                <td class="p-3 font-mono text-gray-400">${escapeHtml(item.SerialNumber || item[2] || '-')}</td>
                 <td class="p-3">${statusBadge}</td>
                 <td class="p-3 print:hidden">
                     <div class="flex items-center gap-1">
-                        <button onclick="openEquipmentLifecyclePrompt('${escapeHtml(item.EquipmentID || item[0])}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="เปลี่ยนสถานะ/ซ่อม"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>
-                        <button onclick="deleteEquipmentRecord('${escapeHtml(item.EquipmentID || item[0])}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition" title="ปิดใช้งาน"><i class="fa-solid fa-ban text-xs"></i></button>
+                        <button onclick="openEquipmentLifecyclePrompt('${escapeJsSingleQuoted(item.EquipmentID || item[0])}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="เปลี่ยนสถานะ/ซ่อม"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>
+                        <button onclick="deleteEquipmentRecord('${escapeJsSingleQuoted(item.EquipmentID || item[0])}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition" title="ปิดใช้งาน"><i class="fa-solid fa-ban text-xs"></i></button>
                     </div>
                 </td>
             `;
@@ -1304,10 +1220,10 @@ function initLeafletGISMap() {
 
                 const popupContent = `
                     <div style="font-family:'Sarabun'; font-size:12px;">
-                        <strong style="color:#4f46e5;">📌 รหัสพัสดุ: ${item.EquipmentID || item[5]}</strong><br>
-                        <b>ผู้ป่วย:</b> ${item.PatientName || item[13] || item[1]}<br>
-                        <b>ชุมชน:</b> ${commName}<br>
-                        <b>โทร:</b> ${item.Phone || item[12]}
+                        <strong style="color:#4f46e5;">📌 รหัสพัสดุ: ${escapeHtml(item.EquipmentID || item[5] || '-')}</strong><br>
+                        <b>ผู้ป่วย:</b> ${escapeHtml(item.PatientName || item[13] || item[1] || '-')}<br>
+                        <b>ชุมชน:</b> ${escapeHtml(commName)}<br>
+                        <b>โทร:</b> ${escapeHtml(item.Phone || item[12] || '-')}
                     </div>
                 `;
                 L.marker([lat, lng]).bindPopup(popupContent).addTo(communityLayers[commName]);
@@ -1360,7 +1276,7 @@ async function loadManagementAnalytics(){
     const r=await run('getManagementAnalytics',{period});
     if(!r||!r.success){
         const msg=String((r&&r.error)||'ไม่สามารถโหลด Management Analytics ได้');
-        const box=document.getElementById('analytics-recommendations');if(box)box.innerHTML=`<div class="text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v3.9.0 ก่อน':''}</div>`;
+        const box=document.getElementById('analytics-recommendations');if(box)box.innerHTML=`<div class="text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.1.1 ก่อน':''}</div>`;
         return;
     }
     state.managementAnalytics=r;
@@ -1440,7 +1356,7 @@ async function loadProcurementPlan(){
     const r=await run('getProcurementPlan',{period});
     if(!r||!r.success){
         const msg=String((r&&r.error)||'ไม่สามารถโหลดแผนจัดหาได้');
-        if(body)body.innerHTML=`<tr><td colspan="9" class="p-6 text-center text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.0.0 ก่อน':''}</td></tr>`;
+        if(body)body.innerHTML=`<tr><td colspan="9" class="p-6 text-center text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.1.1 ก่อน':''}</td></tr>`;
         return;
     }
     state.procurementPlan=r;
@@ -1811,74 +1727,43 @@ function removeExistingBorrowImage(index) {
     renderBorrowPhotoPreviews();
 }
 
+function normalizeBorrowImageId(value){
+    const v=String(value||'').trim();if(!v)return '';if(!v.startsWith('http'))return v;
+    const m=v.match(/[?&]id=([^&]+)/)||v.match(/\/d\/([A-Za-z0-9_-]+)/);return m?decodeURIComponent(m[1]):'';
+}
+async function getBorrowImageDataUrl(value){
+    const id=normalizeBorrowImageId(value);if(!id)return '';if(borrowImageCache.has(id))return borrowImageCache.get(id);
+    const r=await run('getBorrowImage',{fileId:id});if(!r||!r.success||!r.dataUrl)return '';borrowImageCache.set(id,r.dataUrl);return r.dataUrl;
+}
+async function hydrateSecureBorrowImages(root=document){
+    const imgs=[...root.querySelectorAll('img[data-borrow-file-id]')];await Promise.all(imgs.map(async img=>{const u=await getBorrowImageDataUrl(img.dataset.borrowFileId);if(u)img.src=u;else{img.alt='ไม่สามารถโหลดรูปหลักฐาน';img.classList.add('opacity-40');}}));
+}
 function renderBorrowPhotoPreviews() {
-    const wrap = document.getElementById('borrow-photo-previews');
-    const trigger = document.getElementById('borrow-photo-trigger');
-    const triggerLabel = document.getElementById('borrow-photo-trigger-label');
-    if (!wrap) return;
-
-    const existingHtml = existingBorrowImageIds.map((id, idx) => `
-        <div class="photo-preview-item">
-            <img src="${driveImageUrl(id)}" alt="รูปหลักฐานเดิม ${idx + 1}" />
-            <div class="photo-preview-remove" onclick="removeExistingBorrowImage(${idx})" title="เอารูปนี้ออก"><i class="fa-solid fa-xmark"></i></div>
-        </div>
-    `).join('');
-    const newHtml = borrowPhotos.map((src, idx) => `
-        <div class="photo-preview-item">
-            <img src="${src}" alt="รูปหลักฐานใหม่ ${idx + 1}" />
-            <span class="absolute top-1 left-1 bg-teal-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">ใหม่</span>
-            <div class="photo-preview-remove" onclick="removeBorrowPhoto(${idx})" title="เอารูปนี้ออก"><i class="fa-solid fa-xmark"></i></div>
-        </div>
-    `).join('');
-
-    const totalCount = existingBorrowImageIds.length + borrowPhotos.length;
-    if (totalCount === 0) {
-        wrap.classList.add('hidden');
-        wrap.innerHTML = '';
-    } else {
-        wrap.classList.remove('hidden');
-        wrap.innerHTML = existingHtml + newHtml;
-    }
-
-    if (!trigger || !triggerLabel) return;
-    if (totalCount >= 3) {
-        trigger.classList.add('hidden');
-    } else {
-        trigger.classList.remove('hidden');
-        triggerLabel.innerText = `ถ่ายรูปหลักฐาน (${totalCount}/3)`;
-    }
+    const wrap=document.getElementById('borrow-photo-previews'),trigger=document.getElementById('borrow-photo-trigger'),triggerLabel=document.getElementById('borrow-photo-trigger-label');if(!wrap)return;
+    const placeholder='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="140"><rect width="100%" height="100%" fill="%23f1f5f9"/><text x="50%" y="52%" text-anchor="middle" fill="%2394a3b8" font-size="14">loading...</text></svg>';
+    const existingHtml=existingBorrowImageIds.map((id,idx)=>`<div class="photo-preview-item"><img src="${placeholder}" data-borrow-file-id="${escapeHtml(normalizeBorrowImageId(id))}" alt="รูปหลักฐานเดิม ${idx+1}" /><div class="photo-preview-remove" onclick="removeExistingBorrowImage(${idx})" title="เอารูปนี้ออก"><i class="fa-solid fa-xmark"></i></div></div>`).join('');
+    const newHtml=borrowPhotos.map((src,idx)=>`<div class="photo-preview-item"><img src="${src}" alt="รูปหลักฐานใหม่ ${idx+1}" /><span class="absolute top-1 left-1 bg-teal-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">ใหม่</span><div class="photo-preview-remove" onclick="removeBorrowPhoto(${idx})" title="เอารูปนี้ออก"><i class="fa-solid fa-xmark"></i></div></div>`).join('');
+    const totalCount=existingBorrowImageIds.length+borrowPhotos.length;if(totalCount===0){wrap.classList.add('hidden');wrap.innerHTML='';}else{wrap.classList.remove('hidden');wrap.innerHTML=existingHtml+newHtml;hydrateSecureBorrowImages(wrap);}
+    if(!trigger||!triggerLabel)return;if(totalCount>=3)trigger.classList.add('hidden');else{trigger.classList.remove('hidden');triggerLabel.innerText=`ถ่ายรูปหลักฐาน (${totalCount}/3)`;}
 }
 
 // 🖼️ เปิดดูรูปภาพหลักฐานที่แนบไว้กับรายการยืมจากตารางแอดมิน
 // 🖼️ ประกอบ URL รูปภาพจากค่าที่เก็บในคอลัมน์ Images ซึ่งอาจเป็น "รหัสไฟล์ Drive ล้วนๆ" (รูปแบบปัจจุบัน)
 // หรือ "URL เต็ม" (รูปแบบเก่าที่เคยบันทึกไว้ก่อนหน้านี้) ให้รองรับได้ทั้งสองแบบ
-function driveImageUrl(idOrUrl) {
-    const val = String(idOrUrl).trim();
-    if (val.startsWith('http')) return val; // เดิมเคยเก็บเป็น URL เต็มไว้แล้ว ใช้ตรงๆ ได้เลย
-    return `https://drive.google.com/thumbnail?id=${val}&sz=w800`; // เก็บเป็นรหัสไฟล์ล้วนๆ ให้ประกอบ URL เอง
-}
+function driveImageUrl(idOrUrl) { return String(idOrUrl||'').trim(); }
 
-function viewBorrowImages(entryId) {
-    const record = state.data.find(r => (r.EntryID || r[0]) === entryId);
-    if (!record) return;
-    const imagesRaw = record.Images || record[7] || '';
-    const urls = String(imagesRaw).split(',').map(s => s.trim()).filter(Boolean).map(driveImageUrl);
-
-    const body = document.getElementById('image-gallery-body');
-    if (urls.length === 0) {
-        body.innerHTML = `<div class="col-span-full empty-state"><i class="fa-solid fa-image text-3xl"></i><span>ไม่มีรูปภาพหลักฐานแนบสำหรับรายการนี้</span></div>`;
-    } else {
-        body.innerHTML = urls.map(url => `
-            <div class="gallery-photo-item">
-                <img src="${url}" alt="รูปหลักฐานการยืม" onclick="window.open('${url}', '_blank')" />
-            </div>
-        `).join('');
-    }
+async function viewBorrowImages(entryId) {
+    const record=state.data.find(r=>(r.EntryID||r[0])===entryId);if(!record)return;
+    const imagesRaw=record.Images||record[7]||'',ids=String(imagesRaw).split(',').map(s=>s.trim()).filter(Boolean),body=document.getElementById('image-gallery-body');
     document.getElementById('modal-image-gallery').classList.add('active');
+    if(!ids.length){body.innerHTML=`<div class="col-span-full empty-state"><i class="fa-solid fa-image text-3xl"></i><span>ไม่มีรูปภาพหลักฐานแนบสำหรับรายการนี้</span></div>`;return;}
+    body.innerHTML='<div class="col-span-full text-center text-gray-400 py-6"><i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังโหลดรูปอย่างปลอดภัย...</div>';
+    const urls=await Promise.all(ids.map(getBorrowImageDataUrl)),valid=urls.filter(Boolean);
+    if(!valid.length){body.innerHTML='<div class="col-span-full empty-state text-rose-500">ไม่สามารถอ่านรูปหลักฐานได้ กรุณาตรวจสิทธิ์ไฟล์หรือ Backend v4.1.1</div>';return;}
+    body.innerHTML=valid.map((url,i)=>`<div class="gallery-photo-item"><img src="${url}" data-secure-gallery-index="${i}" alt="รูปหลักฐานการยืม" /></div>`).join('');
+    [...body.querySelectorAll('img[data-secure-gallery-index]')].forEach(img=>{img.onclick=()=>window.open(valid[Number(img.dataset.secureGalleryIndex)],'_blank');});
 }
-function closeImageGallery() {
-    document.getElementById('modal-image-gallery').classList.remove('active');
-}
+function closeImageGallery(){document.getElementById('modal-image-gallery').classList.remove('active');}
 function openEquipmentModal() { document.getElementById('modal-equipment').classList.add('active'); }
 function closeEquipmentModal() { document.getElementById('modal-equipment').classList.remove('active'); }
 
@@ -1890,7 +1775,7 @@ async function checkSchemaStatus() {
         const res = await run('getSchemaStatus', {});
         if (res.success && res.ready) {
             box.className = 'text-[11px] text-emerald-700 mt-2';
-            box.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> โครงสร้างข้อมูลพร้อมใช้งาน v3.8.0';
+            box.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> โครงสร้างข้อมูลพร้อมใช้งาน v4.1.1';
         } else if (res.success) {
             const missing = [...(res.missingColumns || []), ...(res.missingSheets || [])].join(', ');
             box.className = 'text-[11px] text-amber-700 mt-2';
@@ -1907,7 +1792,7 @@ async function checkSchemaStatus() {
 
 async function upgradeSchemaV35() {
     const confirm = await Swal.fire({
-        title: 'อัปเกรดโครงสร้างเป็น v3.8.0?',
+        title: 'อัปเกรดโครงสร้างเป็น v4.1.1?',
         html: '<div class="text-xs text-left">ระบบจะ <b>เพิ่มเฉพาะ</b> คอลัมน์ คอลัมน์สำหรับ Role/Audit/VOID/Inactive และสร้างชีต AuditLog/BorrowExtensionLog เฉพาะเมื่อยังไม่มี<br><br><b>จะไม่ลบ ไม่ clear และไม่เขียนทับข้อมูลเดิม</b></div>',
         icon: 'info',
         showCancelButton: true,
@@ -1941,25 +1826,19 @@ function maintenanceDateText(value){
 }
 
 async function loadMaintenanceStatus(){
-    const box=document.getElementById('maintenance-status');if(!box)return;
-    box.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังตรวจสอบสถานะ...';
-    const r=await run('getMaintenanceStatus',{});
-    if(!r||!r.success){box.innerHTML=`<span class="text-rose-600">${escapeHtml((r&&r.error)||'โหลดสถานะไม่สำเร็จ')}${String(r&&r.error||'').includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.1.0 ก่อน':''}</span>`;return;}
-    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-    set('maint-count-borrow',Number(r.borrowRows||0).toLocaleString('th-TH'));
-    set('maint-count-audit',Number(r.auditRows||0).toLocaleString('th-TH'));
-    set('maint-count-images',Number(r.imageFiles||0).toLocaleString('th-TH'));
-    set('maint-count-backups',Number(r.dailyBackupCount||0)+Number(r.monthlyBackupCount||0));
-    const en=document.getElementById('maint-backup-enabled');if(en)en.checked=!!r.backupEnabled;
-    const hr=document.getElementById('maint-backup-hour');if(hr)hr.value=Number.isFinite(Number(r.backupHour))?Number(r.backupHour):2;
-    const p=r.policy||{},latest=r.lastBackupUrl?`<a class="text-cyan-700 underline" href="${escapeHtml(r.lastBackupUrl)}" target="_blank" rel="noopener">${escapeHtml(r.lastBackupName||'เปิดไฟล์สำรองล่าสุด')}</a>`:escapeHtml(r.lastBackupName||'ยังไม่มี');
-    box.innerHTML=`<div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5"><div><b>สำรองล่าสุด:</b> ${maintenanceDateText(r.lastBackupAt)}<br>${latest}</div><div><b>อัตโนมัติ:</b> ${r.backupEnabled?'เปิด':'ปิด'} ${r.backupEnabled?'ช่วง '+String(r.backupHour).padStart(2,'0')+':00 น.':''}<br><b>Trigger:</b> ${r.backupTrigger?'พร้อม':r.triggerAuthorizationRequired?'ต้องอนุญาตสิทธิ์':'ยังไม่ตั้ง'}</div><div><b>Daily:</b> ${r.dailyBackupCount||0} ชุด / เก็บ ${p.dailyRetentionDays||30} วัน<br><b>Monthly:</b> ${r.monthlyBackupCount||0} ชุด / เก็บ ${p.monthlyRetentionCount||12} ชุด</div><div><b>Archive sheets:</b> ${r.archiveSheetCount||0}<br><b>MaintenanceLog:</b> ${r.maintenanceRows||0} รายการ</div></div>${r.triggerAuthorizationRequired?'<div class="mt-2 text-amber-700">ต้องรัน <b>authorizeMaintenanceServices</b> ใน Apps Script Editor 1 ครั้งก่อนเปิด Backup อัตโนมัติ</div>':''}`;
+    const box=document.getElementById('maintenance-status');if(!box)return;box.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังตรวจสอบสถานะ...';
+    const r=await run('getMaintenanceStatus',{});if(!r||!r.success){box.innerHTML=`<span class="text-rose-600">${escapeHtml((r&&r.error)||'โหลดสถานะไม่สำเร็จ')}${String(r&&r.error||'').includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.1.1 ก่อน':''}</span>`;return;}
+    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};set('maint-count-borrow',Number(r.borrowRows||0).toLocaleString('th-TH'));set('maint-count-audit',Number(r.auditRows||0).toLocaleString('th-TH'));set('maint-count-images',Number(r.imageFiles||0).toLocaleString('th-TH'));set('maint-count-backups',Number(r.dailyBackupCount||0)+Number(r.monthlyBackupCount||0));
+    const en=document.getElementById('maint-backup-enabled');if(en)en.checked=!!r.backupEnabled;const hr=document.getElementById('maint-backup-hour');if(hr)hr.value=Number.isFinite(Number(r.backupHour))?Number(r.backupHour):2;
+    const p=r.policy||{},latest=r.lastBackupUrl?`<a class="text-cyan-700 underline" href="${escapeHtml(r.lastBackupUrl)}" target="_blank" rel="noopener">${escapeHtml(r.lastBackupName||'เปิดชุดสำรองล่าสุด')}</a>`:escapeHtml(r.lastBackupName||'ยังไม่มี'),root=r.backupRootUrl?`<a class="text-cyan-700 underline" href="${escapeHtml(r.backupRootUrl)}" target="_blank" rel="noopener">เปิดโฟลเดอร์ Backup แยก</a>`:'ยังไม่ได้สร้าง';
+    const imgRisk=Number(r.publicImageFiles||0)>0?`<span class="text-rose-600 font-bold">ยัง Public ${Number(r.publicImageFiles).toLocaleString('th-TH')} ไฟล์</span>`:'<span class="text-emerald-700 font-bold">Private ทั้งหมด</span>';
+    box.innerHTML=`<div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5"><div><b>สำรองล่าสุด:</b> ${maintenanceDateText(r.lastBackupAt)}<br>${latest}<br>${root}</div><div><b>อัตโนมัติ:</b> ${r.backupEnabled?'เปิด':'ปิด'} ${r.backupEnabled?'ช่วง '+String(r.backupHour).padStart(2,'0')+':00 น.':''}<br><b>Trigger:</b> ${r.backupTrigger?'พร้อม':r.triggerAuthorizationRequired?'ต้องอนุญาตสิทธิ์':'ยังไม่ตั้ง'}</div><div><b>Daily:</b> ${r.dailyBackupCount||0} ชุด / เก็บ ${p.dailyRetentionDays||30} วัน<br><b>Monthly:</b> ${r.monthlyBackupCount||0} ชุด / เก็บ ${p.monthlyRetentionCount||12} ชุด</div><div><b>รูปหลักฐาน:</b> ${Number(r.imageFiles||0).toLocaleString('th-TH')} • ${imgRisk}<br><b>Archive sheets:</b> ${r.archiveSheetCount||0}<br><b>MaintenanceLog:</b> ${r.maintenanceRows||0} รายการ / ${p.maintenanceLogDays||730} วัน</div></div>${r.triggerAuthorizationRequired?'<div class="mt-2 text-amber-700">ต้องรัน <b>authorizeMaintenanceServices</b> ใน Apps Script Editor 1 ครั้งก่อนเปิด Backup อัตโนมัติ</div>':''}`;
 }
 
 async function createBackupNow(){
-    const ok=await Swal.fire({title:'สำรองข้อมูลทันที?',text:'ระบบจะทำสำเนา Spreadsheet ไปยังโฟลเดอร์ System Backups โดยไม่แก้ข้อมูลต้นฉบับ',icon:'question',showCancelButton:true,confirmButtonText:'สำรองข้อมูล',cancelButtonText:'ยกเลิก'});if(!ok.isConfirmed)return;
+    const ok=await Swal.fire({title:'สำรองข้อมูลทันที?',text:'ระบบจะสร้างชุดสำรองแยก ประกอบด้วย Spreadsheet + รูปหลักฐาน + config snapshot ที่ตัด credential ออก โดยไม่แก้ข้อมูลต้นฉบับ',icon:'question',showCancelButton:true,confirmButtonText:'สำรองข้อมูล',cancelButtonText:'ยกเลิก'});if(!ok.isConfirmed)return;
     Swal.fire({title:'กำลังสำรองข้อมูล...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
-    const r=await run('createSystemBackup',{});if(r&&r.success){await Swal.fire('สำรองสำเร็จ',`สร้าง ${r.fileName||'ไฟล์สำรอง'} เรียบร้อย`,'success');await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('สำรองไม่สำเร็จ',(r&&r.error)||'เกิดข้อผิดพลาด','error');
+    const r=await run('createSystemBackup',{});if(r&&r.success){await Swal.fire('สำรองสำเร็จ',`สร้าง ${r.fileName||'ชุดสำรอง'} เรียบร้อย • รูปหลักฐาน ${Number(r.imageCopied||0)} ไฟล์${r.imageFailed?' • คัดลอกรูปไม่สำเร็จ '+r.imageFailed+' ไฟล์':''}`,'success');await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('สำรองไม่สำเร็จ',(r&&r.error)||'เกิดข้อผิดพลาด','error');
 }
 
 async function saveBackupSchedule(){
@@ -1970,9 +1849,14 @@ async function saveBackupSchedule(){
 }
 
 async function archiveOldAuditLogUi(){
-    const q=await Swal.fire({title:'Archive Audit Log',text:'ย้าย Log เก่าออกจาก AuditLog หลัก โดยไม่ลบข้อมูล',input:'number',inputValue:365,inputAttributes:{min:30,step:1},showCancelButton:true,confirmButtonText:'Archive',cancelButtonText:'ยกเลิก',inputLabel:'เก็บใน AuditLog หลักย้อนหลังอย่างน้อยกี่วัน'});if(!q.isConfirmed)return;
+    const q=await Swal.fire({title:'Archive Audit Log',text:'ระบบจะสำรองข้อมูลก่อน แล้วจึงย้าย Log เก่าออกจาก AuditLog หลักแบบไม่ clear ทั้งชีต',input:'number',inputValue:365,inputAttributes:{min:30,step:1},showCancelButton:true,confirmButtonText:'Archive',cancelButtonText:'ยกเลิก',inputLabel:'เก็บใน AuditLog หลักย้อนหลังอย่างน้อยกี่วัน'});if(!q.isConfirmed)return;
     const days=Math.max(30,Number(q.value||365));Swal.fire({title:'กำลัง Archive...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const r=await run('archiveAuditLog',{retentionDays:days});
     if(r&&r.success){Swal.fire('Archive สำเร็จ',`ย้าย ${Number(r.archived||0).toLocaleString('th-TH')} รายการ เหลือใน AuditLog ${Number(r.remaining||0).toLocaleString('th-TH')} รายการ`,'success');await loadAuditLogSection();await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('ไม่สำเร็จ',(r&&r.error)||'Archive ไม่สำเร็จ','error');
+}
+
+async function secureBorrowImagesUi(){
+    const q=await Swal.fire({title:'ปิด Public Link ของรูปหลักฐาน?',html:'รูปที่ถูกอ้างอิงใน BorrowLog จะเปลี่ยนเป็น <b>Private</b> และหน้าเว็บจะอ่านผ่าน Session ที่ล็อกอินเท่านั้น',icon:'question',showCancelButton:true,confirmButtonText:'ดำเนินการ',cancelButtonText:'ยกเลิก',confirmButtonColor:'#0891b2'});if(!q.isConfirmed)return;
+    Swal.fire({title:'กำลังปรับสิทธิ์รูปหลักฐาน...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const r=await run('secureBorrowImages',{});if(r&&r.success){await Swal.fire('ปรับสิทธิ์แล้ว',`Private เพิ่ม ${r.secured||0} ไฟล์ • Private อยู่แล้ว ${r.alreadyPrivate||0}${r.failed?' • ไม่สำเร็จ '+r.failed:''}`,'success');borrowImageCache.clear();await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('ไม่สำเร็จ',(r&&r.error)||'ไม่สามารถปรับสิทธิ์รูปได้','error');
 }
 
 async function scanOrphanFilesUi(){
@@ -1981,12 +1865,12 @@ async function scanOrphanFilesUi(){
 }
 
 async function cleanupOrphanFilesUi(){
-    const q=await Swal.fire({title:'ย้าย orphan files ลงถังขยะ?',html:'ระบบตรวจซ้ำก่อนลบ และจะจัดการเฉพาะ <b>borrow_*.jpg</b> อายุเกิน 7 วันที่ไม่ถูกอ้างอิง<br><br>พิมพ์ <b>TRASH ORPHANS</b> เพื่อยืนยัน',input:'text',showCancelButton:true,confirmButtonText:'ย้ายลงถังขยะ',confirmButtonColor:'#e11d48',cancelButtonText:'ยกเลิก'});if(!q.isConfirmed)return;if(String(q.value||'').trim()!=='TRASH ORPHANS'){Swal.fire('ยังไม่ดำเนินการ','ข้อความยืนยันไม่ถูกต้อง','warning');return;}
+    const q=await Swal.fire({title:'ย้าย orphan files ลงถังขยะ?',html:'ระบบจะ Backup ก่อนอัตโนมัติ ตรวจซ้ำก่อนลบ และจะจัดการเฉพาะ <b>borrow_*.jpg</b> อายุเกิน 7 วันที่ไม่ถูกอ้างอิง<br><br>พิมพ์ <b>TRASH ORPHANS</b> เพื่อยืนยัน',input:'text',showCancelButton:true,confirmButtonText:'ย้ายลงถังขยะ',confirmButtonColor:'#e11d48',cancelButtonText:'ยกเลิก'});if(!q.isConfirmed)return;if(String(q.value||'').trim()!=='TRASH ORPHANS'){Swal.fire('ยังไม่ดำเนินการ','ข้อความยืนยันไม่ถูกต้อง','warning');return;}
     const r=await run('cleanupOrphanFiles',{confirmText:'TRASH ORPHANS'});if(r&&r.success){Swal.fire('ดำเนินการแล้ว',`ย้ายลงถังขยะ ${r.trashed||0} ไฟล์${r.failed?' / ไม่สำเร็จ '+r.failed+' ไฟล์':''}`,'success');await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('ไม่สำเร็จ',(r&&r.error)||'Cleanup ไม่สำเร็จ','error');
 }
 
 async function cleanupArchiveLogsUi(){
-    const q=await Swal.fire({title:'ล้าง Audit Archive เก่ากว่า 3 ปี?',html:'ข้อมูลที่เก่ากว่า 1,095 วันจะถูกลบออกจากชีต Archive<br><b>ควรมี Backup ก่อนดำเนินการ</b><br><br>พิมพ์ <b>DELETE ARCHIVE</b> เพื่อยืนยัน',input:'text',showCancelButton:true,confirmButtonText:'ล้างข้อมูลเก่า',confirmButtonColor:'#475569',cancelButtonText:'ยกเลิก'});if(!q.isConfirmed)return;if(String(q.value||'').trim()!=='DELETE ARCHIVE'){Swal.fire('ยังไม่ดำเนินการ','ข้อความยืนยันไม่ถูกต้อง','warning');return;}
+    const q=await Swal.fire({title:'ล้าง Audit Archive เก่ากว่า 3 ปี?',html:'ระบบจะสร้าง Backup ก่อนอัตโนมัติ แล้วลบเฉพาะแถวที่เก่ากว่า 1,095 วันจากชีต Archive<br><br>พิมพ์ <b>DELETE ARCHIVE</b> เพื่อยืนยัน',input:'text',showCancelButton:true,confirmButtonText:'ล้างข้อมูลเก่า',confirmButtonColor:'#475569',cancelButtonText:'ยกเลิก'});if(!q.isConfirmed)return;if(String(q.value||'').trim()!=='DELETE ARCHIVE'){Swal.fire('ยังไม่ดำเนินการ','ข้อความยืนยันไม่ถูกต้อง','warning');return;}
     const r=await run('cleanupArchivedAuditLogs',{confirmText:'DELETE ARCHIVE',retentionDays:1095});if(r&&r.success){Swal.fire('Cleanup สำเร็จ',`ลบ ${r.deletedRows||0} แถวจาก Archive เก่า`,'success');await loadMaintenanceStatus();await loadMaintenanceLog();}else Swal.fire('ไม่สำเร็จ',(r&&r.error)||'Cleanup ไม่สำเร็จ','error');
 }
 
@@ -2147,7 +2031,7 @@ function renderAdminUsersTable(users) {
     list.innerHTML=users.map(u=>{
       const isMe=String(u.adminId).toLowerCase()===String(me).toLowerCase();
       const status=u.active!==false?'เปิดใช้งาน':'ปิดใช้งาน';
-      return `<div class="flex items-center justify-between bg-gray-50 border rounded-xl px-3 py-2.5"><div><p class="font-bold">${escapeHtml(u.adminName)} <span class="text-[10px] text-indigo-600">${escapeHtml(u.role||'STAFF')}</span></p><p class="text-[11px] text-gray-400">${escapeHtml(u.adminId)} • ${status}</p></div><button ${isMe?'disabled':''} onclick="setAdminUserActivePrompt('${escapeHtml(u.adminId)}',${u.active===false?'true':'false'})" class="px-3 py-1.5 rounded-lg text-xs font-bold ${u.active===false?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}">${u.active===false?'เปิดใช้':'ปิดใช้'}</button></div>`;
+      return `<div class="flex items-center justify-between bg-gray-50 border rounded-xl px-3 py-2.5"><div><p class="font-bold">${escapeHtml(u.adminName)} <span class="text-[10px] text-indigo-600">${escapeHtml(u.role||'STAFF')}</span></p><p class="text-[11px] text-gray-400">${escapeHtml(u.adminId)} • ${status}</p></div><button ${isMe?'disabled':''} onclick="setAdminUserActivePrompt('${escapeJsSingleQuoted(u.adminId)}',${u.active===false?'true':'false'})" class="px-3 py-1.5 rounded-lg text-xs font-bold ${u.active===false?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}">${u.active===false?'เปิดใช้':'ปิดใช้'}</button></div>`;
     }).join('');
 }
 function setAdminUserActivePrompt(adminId,active){Swal.fire({title:active?'เปิดใช้งานบัญชี?':'ปิดใช้งานบัญชี?',icon:'question',showCancelButton:true,confirmButtonText:'ยืนยัน'}).then(async r=>{if(!r.isConfirmed)return;const res=await run('setAdminUserActive',{adminId,active});if(res.success){Swal.fire('สำเร็จ','','success');loadAdminUsersSection();}else Swal.fire('ไม่สำเร็จ',res.error||'','error');});}

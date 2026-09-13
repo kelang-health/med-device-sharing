@@ -354,3 +354,6 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover{ background:#475569; }
     background:#fff !important; color:#000 !important;
   }
 }
+
+/* v4.1.1 lifecycle unavailable segment */
+.seg-unavailable{background:#94a3b8;}
