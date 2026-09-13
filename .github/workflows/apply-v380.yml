@@ -1,0 +1,38 @@
+name: Apply v3.8.0 Equipment Lifecycle
+on:
+  push:
+    branches: [work/v3.8.0-equipment-lifecycle]
+    paths:
+      - 'tools/apply_v380.py'
+      - '.github/workflows/apply-v380.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/v3.8.0-equipment-lifecycle
+      - name: Patch frontend
+        run: python tools/apply_v380.py
+      - name: Validate JavaScript
+        run: node --check script.js
+      - name: Validate diff
+        run: git diff --check
+      - name: Verify markers
+        run: |
+          grep -q 'v3.8.0 Equipment Lifecycle' script.js
+          grep -q 'script.js?v=3.8.0' index.html
+          grep -q 'openEquipmentLifecyclePrompt' script.js
+          grep -q 'ReturnCondition' script.js
+          grep -q 'line-event-eq-status' index.html
+      - name: Commit frontend
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html script.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'v3.8.0: equipment lifecycle and return condition workflow'
+          git push origin HEAD:work/v3.8.0-equipment-lifecycle
