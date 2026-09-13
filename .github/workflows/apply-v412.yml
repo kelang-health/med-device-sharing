@@ -1,0 +1,38 @@
+name: Apply v4.1.2 Maintenance UI Hotfix
+on:
+  push:
+    branches: ["work/v4.1.2-maintenance-ui"]
+    paths:
+      - "tools/patch_v412.py"
+      - ".github/workflows/apply-v412.yml"
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/v4.1.2-maintenance-ui
+      - name: Apply patch
+        run: python tools/patch_v412.py
+      - name: Validate JS
+        run: node --check script.js
+      - name: Validate diff
+        run: git diff --check
+      - name: Verify markers
+        run: |
+          grep -q 'style.css?v=4.1.2' index.html
+          grep -q 'script.js?v=4.1.2' index.html
+          grep -q 'maintenance-action-primary-emerald' index.html
+          grep -q 'maintenance-action-primary-cyan' index.html
+          grep -q 'v4.1.2 — Maintenance actions' style.css
+          grep -q 'ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.1.2' index.html
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html style.css script.js
+          git diff --cached --quiet && exit 0
+          git commit -m "v4.1.2: fix maintenance action visibility"
+          git push origin HEAD:work/v4.1.2-maintenance-ui
