@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.7.0 LINE Automation & Event Alerts)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.8.0 Equipment Lifecycle)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -171,7 +171,7 @@ async function runEquipmentStatusSync() {
     try {
         const res = await run('syncEquipmentStatus', {});
         if (res.success) {
-            Swal.fire('ซิงค์สถานะสำเร็จ', `ปรับปรุงข้อมูล ${res.updatedCount} รายการ (กำลังยืม ${res.totalBorrowed} จากทั้งหมด ${res.totalEquipments} ชิ้น)`, 'success');
+            Swal.fire('ซิงค์สถานะสำเร็จ', `ปรับปรุงข้อมูล ${res.updatedCount} รายการ (กำลังยืม ${res.totalBorrowed} จากทั้งหมด ${res.totalEquipments} ชิ้น; คงสถานะ lifecycle ${res.preservedLifecycle||0} ชิ้น)`, 'success');
             await loadSystemData();
         } else {
             Swal.fire('ไม่สำเร็จ', res.error || 'เกิดข้อผิดพลาดระหว่างซิงค์สถานะ', 'error');
@@ -318,7 +318,24 @@ function getBorrowedEquipmentIdSet() {
 function getEquipmentStatus(eq, borrowedSet) {
     const eqId = String(eq.EquipmentID || eq[0] || '').trim();
     const set = borrowedSet || getBorrowedEquipmentIdSet();
-    return set.has(eqId) ? 'Borrowed' : 'Available';
+    if (set.has(eqId)) return 'Borrowed';
+    const stored = String(eq.Status || eq[3] || 'Available').trim();
+    const allowed = ['Available','Cleaning','Inspection','Maintenance','Damaged','Lost','Retired'];
+    return allowed.includes(stored) ? stored : 'Available';
+}
+
+function getEquipmentLifecycleMeta(status) {
+    const map = {
+        Available:{label:'พร้อมใช้งาน',icon:'fa-circle-check',cls:'bg-emerald-50 text-emerald-700 border-emerald-100'},
+        Borrowed:{label:'กำลังยืม',icon:'fa-handshake',cls:'bg-rose-50 text-rose-700 border-rose-100'},
+        Cleaning:{label:'รอทำความสะอาด',icon:'fa-soap',cls:'bg-cyan-50 text-cyan-700 border-cyan-100'},
+        Inspection:{label:'รอตรวจสอบ',icon:'fa-magnifying-glass',cls:'bg-amber-50 text-amber-700 border-amber-100'},
+        Maintenance:{label:'ส่งซ่อม/บำรุง',icon:'fa-screwdriver-wrench',cls:'bg-orange-50 text-orange-700 border-orange-100'},
+        Damaged:{label:'ชำรุด',icon:'fa-triangle-exclamation',cls:'bg-red-50 text-red-700 border-red-100'},
+        Lost:{label:'สูญหาย',icon:'fa-circle-exclamation',cls:'bg-purple-50 text-purple-700 border-purple-100'},
+        Retired:{label:'ปลดระวาง',icon:'fa-ban',cls:'bg-gray-100 text-gray-600 border-gray-200'}
+    };
+    return map[status] || map.Available;
 }
 
 function addMonthsClient(dateValue, months) {
@@ -1019,7 +1036,7 @@ async function openExtendBorrowPrompt(entryId) {
     } else if (res.schemaUpgradeRequired) {
         Swal.fire({
             title: 'ต้องอัปเกรดโครงสร้างก่อน',
-            text: res.error || 'กรุณาไปที่เมนูตั้งค่าแล้วกดอัปเกรดโครงสร้าง v3.6',
+            text: res.error || 'กรุณาไปที่เมนูตั้งค่าแล้วกดอัปเกรดโครงสร้าง v3.8.0',
             icon: 'warning',
             confirmButtonText: 'ไปหน้าตั้งค่า'
         }).then(r => { if (r.isConfirmed) switchTab('settings'); });
@@ -1063,11 +1080,10 @@ function renderEquipmentTable() {
     const borrowedSet = getBorrowedEquipmentIdSet();
 
     const filtered = state.equipments.filter(item => {
-        const isAvailable = getEquipmentStatus(item, borrowedSet) === 'Available';
+        const lifecycleStatus = getEquipmentStatus(item, borrowedSet);
 
         let statusMatch = true;
-        if (statusFilter === 'available') statusMatch = isAvailable;
-        if (statusFilter === 'borrowed') statusMatch = !isAvailable;
+        if (statusFilter !== 'all') statusMatch = lifecycleStatus.toLowerCase() === statusFilter;
         if (!statusMatch) return false;
 
         if (!keyword) return true;
@@ -1093,9 +1109,8 @@ function renderEquipmentTable() {
             const tr = document.createElement('tr');
             tr.className = "hover:bg-gray-50/70 transition-all duration-100";
             const status = getEquipmentStatus(item, borrowedSet);
-            let statusBadge = (status === 'Available') ?
-                `<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100"><i class="fa-solid fa-check-circle mr-1"></i>ว่างพร้อมใช้</span>` :
-                `<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-rose-50 text-rose-700 border border-rose-100"><i class="fa-solid fa-handshake mr-1"></i>ถูกยืมไปคลัง</span>`;
+            const meta = getEquipmentLifecycleMeta(status);
+            const statusBadge = `<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full border ${meta.cls}"><i class="fa-solid ${meta.icon} mr-1"></i>${meta.label}</span>`;
 
             tr.innerHTML = `
                 <td class="p-3 font-semibold text-gray-700">${item.EquipmentID || item[0] || '-'}</td>
@@ -1103,7 +1118,10 @@ function renderEquipmentTable() {
                 <td class="p-3 font-mono text-gray-400">${item.SerialNumber || item[2] || '-'}</td>
                 <td class="p-3">${statusBadge}</td>
                 <td class="p-3 print:hidden">
-                    <button onclick="deleteEquipmentRecord('${item.EquipmentID || item[0]}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    <div class="flex items-center gap-1">
+                        <button onclick="openEquipmentLifecyclePrompt('${escapeHtml(item.EquipmentID || item[0])}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="เปลี่ยนสถานะ/ซ่อม"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>
+                        <button onclick="deleteEquipmentRecord('${escapeHtml(item.EquipmentID || item[0])}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition" title="ปิดใช้งาน"><i class="fa-solid fa-ban text-xs"></i></button>
+                    </div>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -1342,23 +1360,42 @@ async function submitBorrowForm(event) {
     } catch (e) { Swal.fire('ล้มเหลว', 'เกิดข้อผิดพลาดเครือข่าย', 'error'); }
 }
 
-function processReturnItem(id) {
-    Swal.fire({
-        title: 'ยืนยันรับคืนอุปกรณ์แพทย์?',
-        text: "กรอกบันทึกสภาพเพื่อตรวจสอบร่องรอยครุภัณฑ์รับคืนเข้าสู่คลังชิ้นงาน",
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'ยืนยันรับคืน',
-        input: 'text',
-        inputPlaceholder: 'ตัวอย่าง: สภาพสมบูรณ์ดี, มีตำหนิบางส่วน...'
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            Swal.fire({ title: 'กำลังตัดยอดคืนคลัง...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-            const res = await run('returnBorrow', { EntryID: id, ReturnDate: new Date().toISOString(), Note: result.value || 'คืนสภาพปกติ' });
-            if (res.success) { Swal.fire('รับคืนเสร็จสิ้น', 'อัปเดตสถานะว่างพร้อมใช้งานในคลังแล้ว', 'success'); await loadSystemData(); }
-            else { Swal.fire('ไม่สำเร็จ', res.error || 'เกิดข้อผิดพลาดในการบันทึกการคืนอุปกรณ์', 'error'); }
+async function processReturnItem(id) {
+    const html = `
+      <div class="text-left text-sm">
+        <label class="block font-bold text-gray-700 mb-1">สภาพอุปกรณ์เมื่อรับคืน</label>
+        <select id="return-condition" class="swal2-select" style="display:flex;width:100%;margin:0 0 12px 0">
+          <option value="Available">พร้อมใช้งาน</option>
+          <option value="Cleaning">ต้องทำความสะอาด</option>
+          <option value="Inspection">รอตรวจสอบ</option>
+          <option value="Maintenance">ส่งซ่อม/บำรุงรักษา</option>
+          <option value="Damaged">ชำรุด</option>
+          <option value="Lost">สูญหาย</option>
+        </select>
+        <label class="block font-bold text-gray-700 mb-1">บันทึกสภาพ / การดำเนินการ</label>
+        <textarea id="return-condition-note" class="swal2-textarea" style="display:flex;width:100%;margin:0" placeholder="เช่น สภาพสมบูรณ์, ต้องเปลี่ยนลูกยาง, ส่งซ่อมล้อ..."></textarea>
+        <p class="text-xs text-gray-500 mt-2">ถ้าเลือกสถานะอื่นนอกจาก “พร้อมใช้งาน” ต้องระบุรายละเอียดอย่างน้อย 3 ตัวอักษร และอุปกรณ์จะยังไม่กลับเข้ารายการพร้อมยืม</p>
+      </div>`;
+    const result = await Swal.fire({
+        title:'รับคืนและตรวจสภาพอุปกรณ์', html, icon:'question', showCancelButton:true,
+        confirmButtonText:'ยืนยันรับคืน', cancelButtonText:'ยกเลิก',
+        preConfirm:()=>{
+            const condition=document.getElementById('return-condition').value;
+            const note=(document.getElementById('return-condition-note').value||'').trim();
+            if(condition!=='Available' && note.length<3){Swal.showValidationMessage('กรุณาระบุรายละเอียดสภาพอุปกรณ์อย่างน้อย 3 ตัวอักษร');return false;}
+            return {condition,note};
         }
     });
+    if(!result.isConfirmed)return;
+    Swal.fire({ title:'กำลังบันทึกรับคืนและสถานะอุปกรณ์...', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
+    const v=result.value||{};
+    const res=await run('returnBorrow',{EntryID:id,ReturnDate:new Date().toISOString(),ReturnCondition:v.condition,ReturnConditionNote:v.note,Note:v.note||'คืนสภาพปกติ'});
+    if(res.success){
+        await Swal.fire('รับคืนเสร็จสิ้น',`สถานะอุปกรณ์: ${escapeHtml(res.equipmentStatusLabel||getEquipmentLifecycleMeta(v.condition).label)}`,'success');
+        await loadSystemData();
+    }else{
+        Swal.fire('ไม่สำเร็จ',res.error||'เกิดข้อผิดพลาดในการบันทึกการคืนอุปกรณ์','error');
+    }
 }
 
 async function deleteBorrowRecord(entryId) {
@@ -1381,6 +1418,30 @@ async function submitEquipmentForm(event) {
     const res = await run('addEquipment', payload);
     if (res.success) { Swal.fire('เพิ่มขึ้นคลังสำเร็จ', '', 'success'); closeEquipmentModal(); await loadSystemData(); }
     else { Swal.fire('ไม่สำเร็จ', res.error || 'เกิดข้อผิดพลาดในการบันทึกครุภัณฑ์', 'error'); }
+}
+
+async function openEquipmentLifecyclePrompt(eqId) {
+    if(state.role!=='ADMIN'){Swal.fire('สงวนสิทธิ์ ADMIN','การเปลี่ยนสถานะคลังใช้ได้เฉพาะ ADMIN','warning');return;}
+    const item=state.equipments.find(e=>String(e.EquipmentID||e[0])===String(eqId));
+    const current=getEquipmentStatus(item||{},getBorrowedEquipmentIdSet());
+    if(current==='Borrowed'){Swal.fire('ยังเปลี่ยนไม่ได้','อุปกรณ์กำลังถูกยืม ต้องรับคืนก่อนจึงเปลี่ยนสถานะคลังได้','warning');return;}
+    const options={Available:'พร้อมใช้งาน',Cleaning:'รอทำความสะอาด',Inspection:'รอตรวจสอบ',Maintenance:'ส่งซ่อม/บำรุงรักษา',Damaged:'ชำรุด',Lost:'สูญหาย',Retired:'ปลดระวาง'};
+    const result=await Swal.fire({
+        title:`สถานะอุปกรณ์ ${escapeHtml(eqId)}`,
+        input:'select', inputOptions:options, inputValue:current, inputLabel:'เลือกสถานะใหม่',
+        html:'<p class="text-xs text-gray-500 mb-2">สถานะที่ไม่ใช่ “พร้อมใช้งาน” จะถูกกันออกจากรายการอุปกรณ์ที่สามารถยืมได้</p>',
+        showCancelButton:true, confirmButtonText:'ถัดไป', cancelButtonText:'ยกเลิก'
+    });
+    if(!result.isConfirmed)return;
+    const status=result.value;
+    let note='';
+    if(status!=='Available'){
+        const n=await Swal.fire({title:'รายละเอียดการดำเนินการ',input:'textarea',inputPlaceholder:'เช่น รอทำความสะอาด, ส่งร้านซ่อม, ชำรุดที่ล้อ...',showCancelButton:true,confirmButtonText:'บันทึกสถานะ',inputValidator:v=>String(v||'').trim().length<3?'กรุณาระบุอย่างน้อย 3 ตัวอักษร':undefined});
+        if(!n.isConfirmed)return; note=String(n.value||'').trim();
+    }
+    const res=await run('setEquipmentLifecycle',{EquipmentID:eqId,status,note});
+    if(res.success){await Swal.fire('อัปเดตสถานะแล้ว',res.label||getEquipmentLifecycleMeta(status).label,'success');await loadSystemData();}
+    else Swal.fire('ไม่สำเร็จ',res.error||'ไม่สามารถเปลี่ยนสถานะอุปกรณ์ได้','error');
 }
 
 async function deleteEquipmentRecord(eqId) {
@@ -1668,7 +1729,7 @@ async function checkSchemaStatus() {
         const res = await run('getSchemaStatus', {});
         if (res.success && res.ready) {
             box.className = 'text-[11px] text-emerald-700 mt-2';
-            box.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> โครงสร้างข้อมูลพร้อมใช้งาน v3.6';
+            box.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> โครงสร้างข้อมูลพร้อมใช้งาน v3.8.0';
         } else if (res.success) {
             const missing = [...(res.missingColumns || []), ...(res.missingSheets || [])].join(', ');
             box.className = 'text-[11px] text-amber-700 mt-2';
@@ -1685,7 +1746,7 @@ async function checkSchemaStatus() {
 
 async function upgradeSchemaV35() {
     const confirm = await Swal.fire({
-        title: 'อัปเกรดโครงสร้างเป็น v3.6?',
+        title: 'อัปเกรดโครงสร้างเป็น v3.8.0?',
         html: '<div class="text-xs text-left">ระบบจะ <b>เพิ่มเฉพาะ</b> คอลัมน์ คอลัมน์สำหรับ Role/Audit/VOID/Inactive และสร้างชีต AuditLog/BorrowExtensionLog เฉพาะเมื่อยังไม่มี<br><br><b>จะไม่ลบ ไม่ clear และไม่เขียนทับข้อมูลเดิม</b></div>',
         icon: 'info',
         showCancelButton: true,
@@ -1738,7 +1799,7 @@ async function loadLineConfigStatus() {
     const prefs=r.eventPreferences||{};
     const map={
         'line-event-borrow':'CREATE_BORROW','line-event-return':'RETURN_BORROW','line-event-extend':'EXTEND_BORROW',
-        'line-event-eq-add':'CREATE_EQUIPMENT','line-event-void':'VOID_BORROW','line-event-eq-inactive':'DEACTIVATE_EQUIPMENT'
+        'line-event-eq-add':'CREATE_EQUIPMENT','line-event-void':'VOID_BORROW','line-event-eq-inactive':'DEACTIVATE_EQUIPMENT','line-event-eq-status':'EQUIPMENT_STATUS'
     };
     Object.entries(map).forEach(([id,key])=>{const x=document.getElementById(id);if(x)x.checked=!!prefs[key];});
     const dailyEl=document.getElementById('line-daily-enabled');if(dailyEl)dailyEl.checked=!!r.dailyEnabled;
@@ -1768,7 +1829,8 @@ function collectLineEventPreferences(){
         EXTEND_BORROW:!!document.getElementById('line-event-extend')?.checked,
         CREATE_EQUIPMENT:!!document.getElementById('line-event-eq-add')?.checked,
         VOID_BORROW:!!document.getElementById('line-event-void')?.checked,
-        DEACTIVATE_EQUIPMENT:!!document.getElementById('line-event-eq-inactive')?.checked
+        DEACTIVATE_EQUIPMENT:!!document.getElementById('line-event-eq-inactive')?.checked,
+        EQUIPMENT_STATUS:!!document.getElementById('line-event-eq-status')?.checked
     };
 }
 
