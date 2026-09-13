@@ -357,3 +357,36 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover{ background:#475569; }
 
 /* v4.1.1 lifecycle unavailable segment */
 .seg-unavailable{background:#94a3b8;}
+
+
+/* v4.1.2 — Maintenance actions use explicit colors so controls stay visible even when
+   the legacy Tailwind 2 CDN does not provide every newer palette utility. */
+.maintenance-action{
+  width:100%; min-height:44px; padding:10px 16px;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  border-radius:12px; border:1px solid transparent;
+  font-weight:700; line-height:1.35; cursor:pointer;
+  transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease,transform .08s ease;
+  box-shadow:0 1px 2px rgba(15,23,42,.04);
+}
+.maintenance-action:hover{ box-shadow:0 4px 12px -7px rgba(15,23,42,.28); }
+.maintenance-action:active{ transform:translateY(1px); }
+.maintenance-action-primary-cyan{ background:#0891b2 !important; color:#fff !important; border-color:#0e7490 !important; }
+.maintenance-action-primary-cyan:hover{ background:#0e7490 !important; }
+.maintenance-action-primary-emerald{ background:#059669 !important; color:#fff !important; border-color:#047857 !important; }
+.maintenance-action-primary-emerald:hover{ background:#047857 !important; }
+.maintenance-action-indigo{ background:#eef2ff !important; color:#4338ca !important; border-color:#c7d2fe !important; }
+.maintenance-action-indigo:hover{ background:#e0e7ff !important; }
+.maintenance-action-amber{ background:#fffbeb !important; color:#b45309 !important; border-color:#fde68a !important; }
+.maintenance-action-amber:hover{ background:#fef3c7 !important; }
+.maintenance-action-cyan{ background:#ecfeff !important; color:#0e7490 !important; border-color:#a5f3fc !important; }
+.maintenance-action-cyan:hover{ background:#cffafe !important; }
+.maintenance-action-rose{ background:#fff1f2 !important; color:#be123c !important; border-color:#fecdd3 !important; }
+.maintenance-action-rose:hover{ background:#ffe4e6 !important; }
+.maintenance-action-slate{ background:#f1f5f9 !important; color:#334155 !important; border-color:#cbd5e1 !important; }
+.maintenance-action-slate:hover{ background:#e2e8f0 !important; }
+html[data-theme="dark"] .maintenance-action-indigo{ background:#25234a !important; color:#c7d2fe !important; border-color:#4338ca !important; }
+html[data-theme="dark"] .maintenance-action-amber{ background:#3a2a13 !important; color:#fcd34d !important; border-color:#92400e !important; }
+html[data-theme="dark"] .maintenance-action-cyan{ background:#12343d !important; color:#67e8f9 !important; border-color:#155e75 !important; }
+html[data-theme="dark"] .maintenance-action-rose{ background:#3b1722 !important; color:#fda4af !important; border-color:#9f1239 !important; }
+html[data-theme="dark"] .maintenance-action-slate{ background:#1e293b !important; color:#cbd5e1 !important; border-color:#475569 !important; }
