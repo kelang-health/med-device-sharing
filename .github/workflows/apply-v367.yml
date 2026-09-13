@@ -1,0 +1,38 @@
+name: Apply v3.6.7 LINE authorization
+
+on:
+  push:
+    branches:
+      - work/v3.6.7-line-auth
+    paths:
+      - .github/workflows/apply-v367.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/v3.6.7-line-auth
+          fetch-depth: 0
+      - name: Apply patch
+        run: python3 tools/apply_v367.py
+      - name: Validate
+        run: |
+          node --check script.js
+          git diff --check
+          grep -q "style.css?v=3.6.7" index.html
+          grep -q "script.js?v=3.6.7" index.html
+          grep -q "v3.6.7" script.js
+          grep -q "authorizeLineServices" script.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html script.js
+          git diff --cached --quiet && exit 0
+          git commit -m "v3.6.7: guide LINE API authorization"
+          git push origin HEAD:work/v3.6.7-line-auth
