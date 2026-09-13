@@ -1,9 +1,9 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.9.0 Management Analytics)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.0.0 Procurement Planning & Accessibility)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzPHiANxxUEHUoAKyK1hHfGWuZN_ihkI8xQ3WXkLyPFG5DDONW5limoB-h6egfOsNKgzA/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbzPHiANxxUEHUoAKyK1hHfGWuZN_ihkI8xQ3WXkLyPFG5DDONW5limoB-h6egfOsNKgzA/exec";
 
 
 
@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
     adminId: 'medDevice.adminId',
     adminName: 'medDevice.adminName',
     theme: 'medDevice.themeMode',
+    fontScale: 'medDevice.fontScale',
     role: 'medDevice.role'
 };
 
@@ -70,11 +71,12 @@ let state = {
     adminId: '',
     adminName: '',
     role: '',
-    data: [],       
-    publics: [],    
+    data: [],
+    publics: [],
     equipments: [],
     publicSummary: null,
     managementAnalytics: null,
+    procurementPlan: null,
     currentTab: 'dashboard'
 };
 // ตัวแปรควบคุมระบบการแบ่งหน้าแสดงผลทั้ง 3 ส่วนหลัก (หน้าละ 20 แถว)
@@ -139,12 +141,38 @@ async function run(action, payload = {}) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     migrateLegacyStorage();
+    initFontScale();
     initThemeMode();
     await checkAuthSession();
     await loadSystemData();
     const borrowDate = document.getElementById('borrow-date');
     if (borrowDate) borrowDate.valueAsDate = new Date();
 });
+
+// 🔎 ปรับขนาดตัวอักษรทั้งระบบ พร้อมจดจำค่าบนเครื่องผู้ใช้
+const FONT_SCALE_STEPS = [0.9, 1.0, 1.1, 1.2, 1.3];
+function normalizeFontScale(value){
+    const n=Number(value);
+    if(!Number.isFinite(n))return 1;
+    return FONT_SCALE_STEPS.reduce((best,x)=>Math.abs(x-n)<Math.abs(best-n)?x:best,1);
+}
+function initFontScale(){
+    applyFontScale(normalizeFontScale(localStorage.getItem(STORAGE_KEYS.fontScale)||1));
+}
+function applyFontScale(scale){
+    const v=normalizeFontScale(scale);
+    document.documentElement.style.setProperty('--font-scale',String(v));
+    localStorage.setItem(STORAGE_KEYS.fontScale,String(v));
+    const label=document.getElementById('font-scale-label');
+    if(label)label.textContent=Math.round(v*100)+'%';
+}
+function changeFontScale(direction){
+    const current=normalizeFontScale(localStorage.getItem(STORAGE_KEYS.fontScale)||1);
+    let idx=FONT_SCALE_STEPS.indexOf(current);
+    idx=Math.max(0,Math.min(FONT_SCALE_STEPS.length-1,idx+Number(direction||0)));
+    applyFontScale(FONT_SCALE_STEPS[idx]);
+}
+function resetFontScale(){ applyFontScale(1); }
 
 // 🌗 ระบบสลับโหมดมืด/สว่าง (Dark / Light Mode) พร้อมจดจำค่าที่เลือกไว้ล่าสุด
 function initThemeMode() {
@@ -290,7 +318,7 @@ function applySystemConfiguration() {
         document.getElementById('set-logo-old').value = logoUrl;
         document.getElementById('set-agency1').value = title1;
         document.getElementById('set-agency2').value = title2;
-        
+
         const commItems = state.publics.filter(item => item['ประเภท'] === 'Community' || item[0] === 'Community');
         let commText = commItems.map(item => `${item['ข้อมูล 1'] || item[1]},${item['ข้อมูล 2'] || item[2]}`).join('\n');
         document.getElementById('set-communities').value = commText;
@@ -503,16 +531,16 @@ function renderEquipmentTypeGrid() {
     if (!grid) return;
     grid.innerHTML = '';
     const groups = {};
-    
+
     state.equipments.forEach(eq => {
         let name = eq.EquipmentName || eq[1];
         name = name ? String(name).trim() : 'อุปกรณ์ทั่วไป';
         if (!groups[name]) groups[name] = { total: 0, available: 0, borrowed: 0 };
         groups[name].total++;
     });
-    
+
     const activeBorrows = getActiveBorrows();
-    
+
     activeBorrows.forEach(r => {
         const borrowEqId = String(r.EquipmentID || r[5]).trim();
         const matchedEq = state.equipments.find(e => String(e.EquipmentID || e[0]).trim() === borrowEqId);
@@ -522,7 +550,7 @@ function renderEquipmentTypeGrid() {
             if (groups[name]) groups[name].borrowed++;
         }
     });
-    
+
     for (let name in groups) {
         groups[name].available = groups[name].total - groups[name].borrowed;
     }
@@ -531,7 +559,7 @@ function renderEquipmentTypeGrid() {
         grid.innerHTML = `<div class="col-span-full empty-state"><i class="fa-solid fa-box-open text-3xl"></i><span>ยังไม่มีข้อมูลครุภัณฑ์ในคลัง</span></div>`;
         return;
     }
-    
+
     for (let name in groups) {
         const { icon, solid, pastel, border, text } = getCategoryVisual(name);
         const g = groups[name];
@@ -702,10 +730,10 @@ function renderAdminBorrowContainer() {
                         `<span class="bg-gray-50 text-gray-300 p-1.5 rounded-lg" title="ไม่มีรูปภาพหลักฐานแนบ"><i class="fa-solid fa-camera text-xs"></i></span>`
                     }
                     <button onclick="printLoanReceipt('${entryId}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 p-1.5 rounded-lg transition" title="พิมพ์ใบอนุมัติสัญญาค้ำประกันคลัง"><i class="fa-solid fa-print text-xs"></i></button>
-                    ${(status === 'Borrowed' || status === 'ยืม') ? 
+                    ${(status === 'Borrowed' || status === 'ยืม') ?
                         `<button onclick="editBorrowRecord('${entryId}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-lg transition" title="แก้ไขรายการนี้ (กรณีบันทึกผิด)"><i class="fa-solid fa-pen text-xs"></i></button>` : ''
                     }
-                    ${(status === 'Borrowed' || status === 'ยืม') ? 
+                    ${(status === 'Borrowed' || status === 'ยืม') ?
                         `<button onclick="processReturnItem('${entryId}')" class="bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold text-[11px] px-2.5 py-1 rounded-lg transition">คืน</button>` : ''
                     }
                     <button onclick="deleteBorrowRecord('${entryId}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
@@ -761,19 +789,19 @@ function printLoanReceipt(entryId) {
         Swal.fire('ข้อผิดพลาด', 'ไม่พบข้อมูลแถวสัญญานี้ในคลังระบบ', 'error');
         return;
     }
-    
+
     // 🗓️ ถอดค่าและจัดรูปแบบวันที่เริ่มต้นสัญญา และวันครบกำหนดส่งคืนรับประกันมัดจำ (บวก 6 เดือน)
     const rawDate = row.BorrowDate || row[9];
     const bDate = rawDate ? new Date(rawDate) : new Date();
     const dateFormatted = bDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-    
+
     const dDate = getBorrowDueDate(row) || addMonthsClient(bDate, 6) || bDate;
     const endDateFormatted = dDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 
     // 📦 ค้นหารหัสครุภัณฑ์และแมปข้อมูลชื่อรุ่นกายอุปกรณ์จากสต็อกพัสดุ
     const eqId = row.EquipmentID || row[5];
     const matchedEq = state.equipments.find(e => String(e.EquipmentID || e[0]).trim() === String(eqId).trim());
-    
+
     // 📡 ดึงข้อมูลสัญญลักษณ์ Logo และชื่อต้นสังกัดจากแผ่นข้อมูลพับลิกส์ (Publics Sheet)
     const agencyText = state.publics.find(item => item['ประเภท'] === 'Agency' || item[0] === 'Agency');
     const logoText = state.publics.find(item => item['ประเภท'] === 'Logo' || item[0] === 'Logo');
@@ -803,7 +831,7 @@ function printLoanReceipt(entryId) {
     if (document.getElementById('print-equipment')) {
         document.getElementById('print-equipment').innerText = matchedEq ? `${matchedEq[1] || matchedEq.EquipmentName} รหัส: ${matchedEq[0] || matchedEq.EquipmentID} (${matchedEq[2] || matchedEq.SerialNumber})` : eqId;
     }
-    
+
     if (document.getElementById('print-start-date')) {
         document.getElementById('print-start-date').innerText = dateFormatted;
     }
@@ -822,7 +850,7 @@ function printLoanReceipt(entryId) {
     if (document.getElementById('print-deposit')) {
         document.getElementById('print-deposit').innerText = row.Deposit || row[15] || '0';
     }
-    
+
     // 🔒 ระบบความปลอดภัยอัตโนมัติ: ดึงชื่อบัญชีแอดมินผู้ที่เข้าสู่ระบบพิมพ์ในขณะนั้นหยอดลงช่องเจ้าหน้าที่ผู้ให้ยืมทันที
     if (document.getElementById('print-sign-staff')) {
         document.getElementById('print-sign-staff').innerText = state.adminName || 'เจ้าหน้าที่ผู้มอบ';
@@ -1143,7 +1171,7 @@ function populateFormSelectors(currentEquipmentId) {
     const selectEq = document.getElementById('borrow-eq-id');
     if (!selectEq) return;
     selectEq.innerHTML = '<option value="">-- กรุณาเลือกรายการอุปกรณ์พัสดุ --</option>';
-    
+
     const borrowedSet = getBorrowedEquipmentIdSet();
     // ตอนแก้ไขรายการ อุปกรณ์ที่รายการนี้ถือครองอยู่แล้วจะถูกนับว่า "ถูกยืม" ไปด้วย ต้องดึงกลับมาแสดงในตัวเลือกด้วยเสมอ
     const availableEqs = state.equipments.filter(e => {
@@ -1177,7 +1205,7 @@ function syncSerialNumber() {
 }
 
 function switchTab(tabId) {
-    if (state.isAdmin && ['settings','analytics'].includes(tabId) && state.role !== 'ADMIN') { Swal.fire('สงวนสิทธิ์ ADMIN','เมนูนี้ใช้ได้เฉพาะ ADMIN','warning'); return; }
+    if (state.isAdmin && ['settings','analytics','procurement'].includes(tabId) && state.role !== 'ADMIN') { Swal.fire('สงวนสิทธิ์ ADMIN','เมนูนี้ใช้ได้เฉพาะ ADMIN','warning'); return; }
     if (!state.isAdmin && tabId !== 'dashboard') {
         Swal.fire('สิทธิ์ไม่เพียงพอ', 'กรุณาเข้าสู่ระบบด้วยบัญชีแอดมินเจ้าหน้าที่ก่อน', 'warning');
         return;
@@ -1185,12 +1213,12 @@ function switchTab(tabId) {
     state.currentTab = tabId;
     const views = document.querySelectorAll('.app-view');
     views.forEach(v => v.classList.add('hidden'));
-    
+
     document.getElementById(`sec-${tabId}`).classList.remove('hidden');
-    
+
     const menuItems = document.querySelectorAll('.menu-item');
     menuItems.forEach(m => m.classList.remove('active'));
-    
+
     const targetMenu = document.getElementById(`btn-menu-${tabId}`);
     if (targetMenu) targetMenu.classList.add('active');
 
@@ -1202,6 +1230,9 @@ function switchTab(tabId) {
     }
     if (tabId === 'analytics') {
         loadManagementAnalytics();
+    }
+    if (tabId === 'procurement') {
+        loadProcurementPlan();
     }
     if (tabId === 'settings') {
         loadAdminUsersSection();
@@ -1215,16 +1246,16 @@ function toggleSidebarMinimize() {
     const sidebar = document.getElementById('sidebar');
     const wrapper = document.getElementById('main-wrapper');
     const icon = document.getElementById('minimize-icon');
-    
+
     sidebar.classList.toggle('collapsed');
     wrapper.classList.toggle('sidebar-collapsed');
-    
+
     if (sidebar.classList.contains('collapsed')) {
         icon.className = "fa-solid fa-chevron-right";
     } else {
         icon.className = "fa-solid fa-chevron-left";
     }
-    
+
     if (state.currentTab === 'map' && mapInstance) {
         setTimeout(() => { mapInstance.invalidateSize(); }, 300);
     }
@@ -1251,7 +1282,7 @@ function initLeafletGISMap() {
 
     const baseMaps = { "แผนที่ทั่วไป": osmLayer, "ภาพดาวเทียม": satelliteLayer };
     communityLayers = {};
-    
+
     const activeBorrows = state.data.filter(item => {
         const s = item.Status || item[8];
         const g = item.GPS || item[16];
@@ -1264,7 +1295,7 @@ function initLeafletGISMap() {
         if (coords.length === 2) {
             const lat = parseFloat(coords[0].trim());
             const lng = parseFloat(coords[1].trim());
-            
+
             if (!isNaN(lat) && !isNaN(lng)) {
                 const commName = item.Community || item[4] || "ทั่วไปนอกเขต";
                 if (!communityLayers[commName]) communityLayers[commName] = L.layerGroup();
@@ -1383,6 +1414,46 @@ function renderManagementRepairs(rows){
 function renderManagementRecommendations(rows){
     const box=document.getElementById('analytics-recommendations');if(!box)return;
     box.innerHTML=(rows.length?rows:['ยังไม่มีข้อเสนอจากข้อมูล']).map((x,i)=>`<div class="flex gap-2 bg-white/70 border border-violet-100 rounded-xl p-3"><span class="font-black text-violet-600">${i+1}</span><span>${escapeHtml(x)}</span></div>`).join('');
+}
+
+function procurementActionBadge(action){
+    const a=String(action||'');
+    let cls='bg-slate-100 text-slate-700';
+    if(a.includes('จัดหาเพิ่ม'))cls='bg-emerald-50 text-emerald-700 border border-emerald-100';
+    else if(a.includes('ทดแทน'))cls='bg-amber-50 text-amber-700 border border-amber-100';
+    else if(a==='เฝ้าระวัง')cls='bg-rose-50 text-rose-700 border border-rose-100';
+    else if(a==='ทบทวนสต็อก')cls='bg-slate-100 text-slate-600 border border-slate-200';
+    return `<span class="inline-flex px-2 py-1 rounded-full text-[10px] font-bold ${cls}">${escapeHtml(a||'เพียงพอ')}</span>`;
+}
+
+async function loadProcurementPlan(){
+    if(state.role!=='ADMIN')return;
+    const period=document.getElementById('procurement-period')?.value||'fy';
+    const body=document.getElementById('procurement-plan-body');
+    const repl=document.getElementById('procurement-replacement-body');
+    const rec=document.getElementById('procurement-recommendations');
+    if(body)body.innerHTML='<tr><td colspan="9" class="p-6 text-center text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังจัดทำแผน...</td></tr>';
+    if(repl)repl.innerHTML='<tr><td colspan="5" class="p-6 text-center text-gray-400">กำลังโหลด...</td></tr>';
+    if(rec)rec.innerHTML='<div class="text-gray-400">กำลังวิเคราะห์...</div>';
+    const r=await run('getProcurementPlan',{period});
+    if(!r||!r.success){
+        const msg=String((r&&r.error)||'ไม่สามารถโหลดแผนจัดหาได้');
+        if(body)body.innerHTML=`<tr><td colspan="9" class="p-6 text-center text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.0.0 ก่อน':''}</td></tr>`;
+        return;
+    }
+    state.procurementPlan=r;
+    const s=r.summary||{};
+    analyticsSetText('proc-kpi-types',Number(s.equipmentTypes||0).toLocaleString('th-TH'));
+    analyticsSetText('proc-kpi-priority',Number(s.highPriorityTypes||0).toLocaleString('th-TH'));
+    analyticsSetText('proc-kpi-add',Number(s.recommendedAddUnits||0).toLocaleString('th-TH')+' ชิ้น');
+    analyticsSetText('proc-kpi-replace',Number(s.replacementUnits||0).toLocaleString('th-TH')+' ชิ้น');
+    analyticsSetText('proc-kpi-underused',Number(s.underusedTypes||0).toLocaleString('th-TH'));
+    analyticsSetText('procurement-period-label',analyticsPeriodText(r.period));
+    const rows=r.plan||[];
+    if(body)body.innerHTML=rows.length?rows.map(x=>`<tr class="border-t border-gray-100 hover:bg-gray-50/60"><td class="p-3"><div class="font-bold text-gray-800">${escapeHtml(x.equipmentName||'-')}</div><div class="text-[10px] text-gray-400 mt-1">${escapeHtml(x.reason||'')}</div></td><td class="p-3 text-right">${Number(x.stock||0)}</td><td class="p-3 text-right font-bold text-indigo-700">${Number(x.borrowCount||0)}</td><td class="p-3 text-right">${Number(x.snapshotUtilization||0).toFixed(1)}%</td><td class="p-3 text-right">${Number(x.repairEvents||0)}</td><td class="p-3 text-right font-bold text-emerald-700">${Number(x.recommendedAdd||0)}</td><td class="p-3 text-right font-bold text-amber-700">${Number(x.replacementCandidates||0)}</td><td class="p-3 text-center"><span class="font-black ${Number(x.priorityScore||0)>=60?'text-rose-600':Number(x.priorityScore||0)>=40?'text-amber-600':'text-slate-600'}">${Number(x.priorityScore||0)}</span></td><td class="p-3">${procurementActionBadge(x.action)}</td></tr>`).join(''):'<tr><td colspan="9" class="p-6 text-center text-gray-400">ไม่มีข้อมูลสำหรับช่วงที่เลือก</td></tr>';
+    const rr=r.replacementCandidates||[];
+    if(repl)repl.innerHTML=rr.length?rr.map(x=>`<tr class="border-t border-gray-100"><td class="p-3 font-mono font-bold">${escapeHtml(x.equipmentId||'-')}</td><td class="p-3">${escapeHtml(x.equipmentName||'-')}</td><td class="p-3 text-center">${escapeHtml(getEquipmentLifecycleMeta(x.currentStatus||'Available').label)}</td><td class="p-3 text-right font-bold">${Number(x.eventCount||0)}</td><td class="p-3">${escapeHtml(x.reason||'-')}</td></tr>`).join(''):'<tr><td colspan="5" class="p-6 text-center text-gray-400">ยังไม่มีอุปกรณ์เข้าข่ายทดแทนจากข้อมูลที่บันทึก</td></tr>';
+    if(rec)rec.innerHTML=(r.recommendations||[]).map((x,i)=>`<div class="flex gap-2"><span class="w-5 h-5 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold flex-shrink-0">${i+1}</span><span>${escapeHtml(x)}</span></div>`).join('')||'<div>ยังไม่มีข้อเสนอเพิ่มเติม</div>';
 }
 
 function exportToCSV(sheetName) {
