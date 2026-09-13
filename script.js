@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.1.1 Stabilization & Safety Fix)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.1.2 Maintenance UI Visibility Hotfix)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
