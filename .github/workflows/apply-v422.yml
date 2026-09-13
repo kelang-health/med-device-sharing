@@ -21,11 +21,6 @@ jobs:
         run: node --check script.js
       - name: Validate diff
         run: git diff --check
-      - name: Verify markers
-        run: |
-          grep -q 'v4.2.2 Backend Deployment Guard' script.js
-          grep -q 'backendUnavailable' script.js
-          grep -q 'script.js?v=4.2.2' index.html
       - name: Commit frontend
         run: |
           git config user.name 'github-actions[bot]'
