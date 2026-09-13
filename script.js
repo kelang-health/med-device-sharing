@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.8.0 Equipment Lifecycle)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v3.9.0 Management Analytics)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -74,6 +74,7 @@ let state = {
     publics: [],    
     equipments: [],
     publicSummary: null,
+    managementAnalytics: null,
     currentTab: 'dashboard'
 };
 // ตัวแปรควบคุมระบบการแบ่งหน้าแสดงผลทั้ง 3 ส่วนหลัก (หน้าละ 20 แถว)
@@ -1176,7 +1177,7 @@ function syncSerialNumber() {
 }
 
 function switchTab(tabId) {
-    if (state.isAdmin && tabId === 'settings' && state.role !== 'ADMIN') { Swal.fire('สงวนสิทธิ์ ADMIN','เมนูตั้งค่าระบบใช้ได้เฉพาะ ADMIN','warning'); return; }
+    if (state.isAdmin && ['settings','analytics'].includes(tabId) && state.role !== 'ADMIN') { Swal.fire('สงวนสิทธิ์ ADMIN','เมนูนี้ใช้ได้เฉพาะ ADMIN','warning'); return; }
     if (!state.isAdmin && tabId !== 'dashboard') {
         Swal.fire('สิทธิ์ไม่เพียงพอ', 'กรุณาเข้าสู่ระบบด้วยบัญชีแอดมินเจ้าหน้าที่ก่อน', 'warning');
         return;
@@ -1198,6 +1199,9 @@ function switchTab(tabId) {
     }
     if (tabId === 'tracking') {
         renderTrackingSection();
+    }
+    if (tabId === 'analytics') {
+        loadManagementAnalytics();
     }
     if (tabId === 'settings') {
         loadAdminUsersSection();
@@ -1295,6 +1299,90 @@ function getCurrentLocation() {
         document.getElementById('borrow-gps').value = `${pos.coords.latitude}, ${pos.coords.longitude}`;
         Swal.fire('สำเร็จ', 'ดึงตำแหน่งพิกัดภูมิศาสตร์เรียบร้อย', 'success');
     }, (err) => { Swal.fire('ขัดข้อง', 'สัญญาณดาวเทียมอับหรือยกเลิกสิทธิ์ส่งต่อพิกัด', 'error'); }, { enableHighAccuracy: true, timeout: 8000 });
+}
+
+function analyticsSetText(id,value){const el=document.getElementById(id);if(el)el.textContent=value;}
+
+function analyticsMonthLabel(key){
+    const p=String(key||'').split('-');
+    if(p.length!==2)return key||'-';
+    const d=new Date(Number(p[0]),Number(p[1])-1,1);
+    return d.toLocaleDateString('th-TH',{month:'short',year:'2-digit'});
+}
+
+function analyticsPeriodText(period){
+    if(!period)return '';
+    if(!period.start)return 'ช่วงข้อมูล: ประวัติทั้งหมดจนถึงปัจจุบัน';
+    const a=new Date(period.start),b=new Date(period.end);
+    const f=d=>Number.isNaN(d.getTime())?'-':d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});
+    return `ช่วงข้อมูล: ${f(a)} – ${f(b)}`;
+}
+
+async function loadManagementAnalytics(){
+    if(state.role!=='ADMIN')return;
+    const period=document.getElementById('analytics-period')?.value||'fy';
+    ['analytics-monthly','analytics-lifecycle','analytics-communities','analytics-recommendations'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังวิเคราะห์ข้อมูล...</div>';});
+    const top=document.getElementById('analytics-top-equipment');if(top)top.innerHTML='<tr><td colspan="3" class="p-4 text-center text-gray-400">กำลังโหลด...</td></tr>';
+    const repairs=document.getElementById('analytics-repairs');if(repairs)repairs.innerHTML='<tr><td colspan="4" class="p-4 text-center text-gray-400">กำลังโหลด...</td></tr>';
+    const r=await run('getManagementAnalytics',{period});
+    if(!r||!r.success){
+        const msg=String((r&&r.error)||'ไม่สามารถโหลด Management Analytics ได้');
+        const box=document.getElementById('analytics-recommendations');if(box)box.innerHTML=`<div class="text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v3.9.0 ก่อน':''}</div>`;
+        return;
+    }
+    state.managementAnalytics=r;
+    const k=r.kpi||{};
+    analyticsSetText('analytics-kpi-records',Number(k.recordsInPeriod||0).toLocaleString('th-TH'));
+    analyticsSetText('analytics-kpi-util',`${Number(k.currentUtilizationRate||0).toFixed(1)}%`);
+    analyticsSetText('analytics-kpi-overdue',`${Number(k.currentOverdue||0)} (${Number(k.overdueRate||0).toFixed(1)}%)`);
+    analyticsSetText('analytics-kpi-days',`${Number(k.avgLoanDays||0).toFixed(1)} วัน`);
+    analyticsSetText('analytics-kpi-reach',`${Number(k.equipmentReachRate||0).toFixed(1)}%`);
+    analyticsSetText('analytics-kpi-extension',`${Number(k.extensionRate||0).toFixed(1)}%`);
+    analyticsSetText('analytics-period-label',analyticsPeriodText(r.period));
+    renderManagementMonthly(r.monthlyTrend||[]);
+    renderManagementLifecycle(r.lifecycleSummary||{});
+    renderManagementTopEquipment(r.topEquipment||[]);
+    renderManagementCommunities(r.topCommunities||[]);
+    renderManagementRepairs(r.repairEquipment||[]);
+    renderManagementRecommendations(r.recommendations||[]);
+}
+
+function renderManagementMonthly(rows){
+    const box=document.getElementById('analytics-monthly');if(!box)return;
+    if(!rows.length){box.innerHTML='<div class="text-gray-400">ยังไม่มีข้อมูลในช่วงที่เลือก</div>';return;}
+    const max=Math.max(1,...rows.map(x=>Math.max(Number(x.borrowCount||0),Number(x.returnCount||0))));
+    box.innerHTML=rows.map(x=>{const b=Number(x.borrowCount||0),r=Number(x.returnCount||0);return `<div class="grid grid-cols-12 gap-2 items-center"><div class="col-span-2 text-[10px] text-gray-500">${escapeHtml(analyticsMonthLabel(x.month))}</div><div class="col-span-8 space-y-1"><div class="h-2 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-indigo-400 rounded-full" style="width:${Math.max(2,b/max*100)}%"></div></div><div class="h-2 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-emerald-400 rounded-full" style="width:${Math.max(2,r/max*100)}%"></div></div></div><div class="col-span-2 text-right text-[10px]"><span class="text-indigo-600">ยืม ${b}</span><br><span class="text-emerald-600">คืน ${r}</span></div></div>`;}).join('');
+}
+
+function renderManagementLifecycle(data){
+    const box=document.getElementById('analytics-lifecycle');if(!box)return;
+    const order=['Available','Borrowed','Cleaning','Inspection','Maintenance','Damaged','Lost','Retired','Inactive'];
+    const labels={Available:'พร้อมใช้',Borrowed:'กำลังยืม',Cleaning:'ทำความสะอาด',Inspection:'รอตรวจ',Maintenance:'ส่งซ่อม',Damaged:'ชำรุด',Lost:'สูญหาย',Retired:'ปลดระวาง',Inactive:'ปิดใช้งาน'};
+    box.innerHTML=order.map(k=>`<div class="border border-gray-100 rounded-xl p-3 bg-gray-50/50"><div class="text-[10px] text-gray-500">${labels[k]}</div><div class="text-xl font-black text-gray-800">${Number(data[k]||0)}</div></div>`).join('');
+}
+
+function renderManagementTopEquipment(rows){
+    const body=document.getElementById('analytics-top-equipment');if(!body)return;
+    if(!rows.length){body.innerHTML='<tr><td colspan="3" class="p-4 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>';return;}
+    body.innerHTML=rows.map((x,i)=>{const avg=Number(x.returnedCount||0)>0?Number(x.totalLoanDays||0)/Number(x.returnedCount):0;return `<tr class="border-t border-gray-100"><td class="p-2"><span class="font-bold text-gray-700">${i+1}. ${escapeHtml(x.equipmentName||x.equipmentId)}</span><br><span class="text-[10px] text-gray-400">${escapeHtml(x.equipmentId||'')}</span></td><td class="p-2 text-right font-bold">${Number(x.borrowCount||0)}</td><td class="p-2 text-right">${avg.toFixed(1)}</td></tr>`;}).join('');
+}
+
+function renderManagementCommunities(rows){
+    const box=document.getElementById('analytics-communities');if(!box)return;
+    if(!rows.length){box.innerHTML='<div class="text-gray-400">ยังไม่มีข้อมูล</div>';return;}
+    const max=Math.max(1,...rows.map(x=>Number(x.borrowCount||0)));
+    box.innerHTML=rows.map((x,i)=>{const n=Number(x.borrowCount||0);return `<div><div class="flex justify-between gap-2 mb-1"><span class="truncate text-gray-700">${i+1}. ${escapeHtml(x.community||'ไม่ระบุ')}</span><span class="font-bold">${n} ครั้ง</span></div><div class="h-2 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-rose-400 rounded-full" style="width:${Math.max(2,n/max*100)}%"></div></div></div>`;}).join('');
+}
+
+function renderManagementRepairs(rows){
+    const body=document.getElementById('analytics-repairs');if(!body)return;
+    if(!rows.length){body.innerHTML='<tr><td colspan="4" class="p-4 text-center text-gray-400">ยังไม่พบเหตุการณ์ซ่อม/ตรวจสภาพในช่วงที่เลือก</td></tr>';return;}
+    body.innerHTML=rows.map(x=>`<tr class="border-t border-gray-100"><td class="p-2"><span class="font-bold text-gray-700">${escapeHtml(x.equipmentName||x.equipmentId)}</span><br><span class="text-[10px] text-gray-400">${escapeHtml(x.equipmentId||'')}</span></td><td class="p-2 text-right font-bold">${Number(x.eventCount||0)}</td><td class="p-2 text-right">${Number(x.maintenanceCount||0)}</td><td class="p-2 text-right">${Number(x.damagedCount||0)}</td></tr>`).join('');
+}
+
+function renderManagementRecommendations(rows){
+    const box=document.getElementById('analytics-recommendations');if(!box)return;
+    box.innerHTML=(rows.length?rows:['ยังไม่มีข้อเสนอจากข้อมูล']).map((x,i)=>`<div class="flex gap-2 bg-white/70 border border-violet-100 rounded-xl p-3"><span class="font-black text-violet-600">${i+1}</span><span>${escapeHtml(x)}</span></div>`).join('');
 }
 
 function exportToCSV(sheetName) {
@@ -1815,7 +1903,7 @@ async function loadLineConfigStatus() {
         ${badge(!!r.targetConfigured && r.targetValid!==false,'Target: '+targetText)}
         ${badge(!!r.webhookConfigured,'Webhook: '+(r.webhookConfigured?'พร้อม':'ยังไม่พร้อม'))}
         ${badge(!!r.enabled,'แจ้งเตือนหลัก: '+(r.enabled?'เปิด':'ปิด'))}
-        ${badge(eventCount>0,'เหตุการณ์ทันที: '+eventCount+'/6')}
+        ${badge(eventCount>0,'เหตุการณ์ทันที: '+eventCount+'/7')}
         ${badge(!!r.dailyTrigger,'สรุปรายวัน: '+dailyText)}
     </div>
     ${r.targetValid===false?'<div class="mt-2 text-rose-600"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Target ที่บันทึกไว้ไม่ใช่ LINE User/Group ID กรุณากรอกค่า U... หรือ C... แล้วกด “บันทึกการตั้งค่า LINE OA”</div>':''}
