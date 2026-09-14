@@ -1,0 +1,33 @@
+name: Run legacy image migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/run-legacy-image-migration.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Invoke one-time Supabase image migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS --max-time 300 \
+            'https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/legacy-image-migrator' \
+            -o response.json
+          cat response.json
+          python - <<'PY'
+          import json
+          d=json.load(open('response.json',encoding='utf-8'))
+          if not d.get('ok'):
+              raise SystemExit(f"migration incomplete: {d}")
+          if int(d.get('failed',0)) != 0:
+              raise SystemExit(f"migration has failures: {d}")
+          print('migration ok:', d)
+          PY
