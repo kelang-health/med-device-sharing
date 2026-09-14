@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=4.2.3" />
+    <link rel="stylesheet" href="style.css?v=4.2.5" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -795,11 +795,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block font-bold text-gray-500 mb-1">เลขประจำตัวประชาชน (13 หลัก)</label>
-                        <input type="text" id="borrow-citizen" maxlength="13" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
+                        <input type="text" id="borrow-citizen" maxlength="13" inputmode="numeric" pattern="[0-9]{13}" autocomplete="off" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
                     </div>
                     <div>
                         <label class="block font-bold text-gray-500 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
-                        <input type="text" id="borrow-phone" maxlength="10" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
+                        <input type="text" id="borrow-phone" maxlength="10" inputmode="tel" pattern="[0-9]{10}" autocomplete="tel" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
                     </div>
                     <div>
                         <label class="block font-bold text-gray-500 mb-1">ความสัมพันธ์กับตัวผู้ป่วย</label>
@@ -866,7 +866,7 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.2.4 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.2.5 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
@@ -1096,6 +1096,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=4.2.4"></script>
+    <script src="script.js?v=4.2.5"></script>
 </body>
 </html>

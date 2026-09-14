@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.4 Logo/Print Stability)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.5 Data Integrity & Security)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -273,7 +273,7 @@ async function checkAuthSession() {
         state.isAdmin = true;
         state.adminId = res.adminId || getSessionValue('adminId');
         state.adminName = res.adminName || getSessionValue('adminName') || state.adminId;
-        state.role = res.role || getSessionValue('role') || 'ADMIN';
+        state.role = res.role || getSessionValue('role') || 'STAFF';
         setSessionValue('role', state.role);
         setSessionValue('adminId', state.adminId);
         setSessionValue('adminName', state.adminName);
@@ -301,7 +301,26 @@ async function loadSystemData() {
 
         if (state.isAdmin) {
             const resLog = await run('getData', { sheetName: 'BorrowLog' });
-            if (resLog.success) state.data = resLog.data || [];
+            if (resLog.success) {
+                state.data = resLog.data || [];
+                if (state.role === 'ADMIN') {
+                    const borrowedSet = getBorrowedEquipmentIdSet();
+                    const mismatch = state.equipments.some(eq => {
+                        const id = String(eq.EquipmentID || eq[0] || '').trim();
+                        const stored = String(eq.Status || eq[3] || 'Available').trim();
+                        return borrowedSet.has(id) !== ['Borrowed','ยืม'].includes(stored);
+                    });
+                    if (mismatch) {
+                        const synced = await run('syncEquipmentStatus', {});
+                        if (synced && synced.success) {
+                            const refreshedEq = await run('getData', { sheetName: 'Equipments' });
+                            if (refreshedEq && refreshedEq.success) state.equipments = refreshedEq.data || [];
+                        } else {
+                            console.warn('Data integrity auto-sync failed:', synced && synced.error ? synced.error : 'unknown');
+                        }
+                    }
+                }
+            }
         } else {
             state.data = state.equipments
                 .filter(eq => ['Borrowed', 'ยืม'].includes(String(eq.Status || eq[3] || '').trim()))
