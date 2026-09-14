@@ -22,91 +22,30 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-
-          # ---- script.js ----
           p = Path('script.js')
           s = p.read_text(encoding='utf-8')
-
-          s = s.replace(
-              'Frontend Controller API (v4.2.4 Logo/Print Stability)',
-              'Frontend Controller API (v4.2.5 Data Integrity & Security)'
-          )
-          s = s.replace(
-              "state.role = res.role || getSessionValue('role') || 'ADMIN';",
-              "state.role = res.role || getSessionValue('role') || 'STAFF';"
-          )
-
-          old = """        if (state.isAdmin) {
-            const resLog = await run('getData', { sheetName: 'BorrowLog' });
-            if (resLog.success) state.data = resLog.data || [];
-        } else {
-"""
-          new = """        if (state.isAdmin) {
-            const resLog = await run('getData', { sheetName: 'BorrowLog' });
-            if (resLog.success) state.data = resLog.data || [];
-            // v4.2.5: ADMIN ตรวจความสอดคล้อง BorrowLog ↔ Equipments อัตโนมัติ 1 ครั้งต่อ page load
-            // ใช้เฉพาะเมื่อพบ mismatch จริง จึงไม่เพิ่ม write/load โดยไม่จำเป็น
-            if (state.role === 'ADMIN') await autoRepairEquipmentStatusOnce();
-        } else {
-"""
+          s = s.replace('Frontend Controller API (v4.2.4 Logo/Print Stability)', 'Frontend Controller API (v4.2.5 Data Integrity & Security)')
+          s = s.replace("state.role = res.role || getSessionValue('role') || 'ADMIN';", "state.role = res.role || getSessionValue('role') || 'STAFF';")
+          old = "        if (state.isAdmin) {\n            const resLog = await run('getData', { sheetName: 'BorrowLog' });\n            if (resLog.success) state.data = resLog.data || [];\n        } else {"
+          new = "        if (state.isAdmin) {\n            const resLog = await run('getData', { sheetName: 'BorrowLog' });\n            if (resLog.success) {\n                state.data = resLog.data || [];\n                if (state.role === 'ADMIN') {\n                    const borrowedSet = getBorrowedEquipmentIdSet();\n                    const mismatch = state.equipments.some(eq => {\n                        const id = String(eq.EquipmentID || eq[0] || '').trim();\n                        const stored = String(eq.Status || eq[3] || 'Available').trim();\n                        return borrowedSet.has(id) !== ['Borrowed','ยืม'].includes(stored);\n                    });\n                    if (mismatch) {\n                        const synced = await run('syncEquipmentStatus', {});\n                        if (synced && synced.success) {\n                            const refreshedEq = await run('getData', { sheetName: 'Equipments' });\n                            if (refreshedEq && refreshedEq.success) state.equipments = refreshedEq.data || [];\n                        } else {\n                            console.warn('Data integrity auto-sync failed:', synced && synced.error ? synced.error : 'unknown');\n                        }\n                    }\n                }\n            }\n        } else {"
           if old not in s:
               raise SystemExit('loadSystemData hook not found')
           s = s.replace(old, new, 1)
-
-          marker = """function applySystemConfiguration() {
-"""
-          helper = r'''async function autoRepairEquipmentStatusOnce() {
-    if (window.__equipmentIntegrityChecked) return;
-    window.__equipmentIntegrityChecked = true;
-    try {
-        const borrowedSet = getBorrowedEquipmentIdSet();
-        const mismatches = state.equipments.filter(eq => {
-            const eqId = String(eq.EquipmentID || eq[0] || '').trim();
-            const stored = String(eq.Status || eq[3] || 'Available').trim();
-            const shouldBorrow = borrowedSet.has(eqId);
-            const storedBorrowed = ['Borrowed', 'ยืม'].includes(stored);
-            return (shouldBorrow && !storedBorrowed) || (!shouldBorrow && storedBorrowed);
-        });
-        if (!mismatches.length) return;
-
-        console.warn(`พบสถานะคลังไม่ตรง BorrowLog ${mismatches.length} รายการ กำลังซิงค์อัตโนมัติ`);
-        const sync = await run('syncEquipmentStatus', {});
-        if (!sync || !sync.success) {
-            console.warn('ซิงค์สถานะอัตโนมัติไม่สำเร็จ:', sync && sync.error ? sync.error : 'unknown');
-            return;
-        }
-        const fresh = await run('getData', { sheetName: 'Equipments' });
-        if (fresh && fresh.success) state.equipments = fresh.data || [];
-    } catch (e) {
-        console.warn('ตรวจสอบ data integrity อัตโนมัติไม่สำเร็จ:', e);
-    }
-}
-
-'''
-          if 'async function autoRepairEquipmentStatusOnce()' not in s:
-              if marker not in s:
-                  raise SystemExit('applySystemConfiguration marker not found')
-              s = s.replace(marker, helper + marker, 1)
-
           p.write_text(s, encoding='utf-8')
 
-          # ---- index.html ----
           p = Path('index.html')
           h = p.read_text(encoding='utf-8')
           h = h.replace('style.css?v=4.2.3', 'style.css?v=4.2.5')
           h = h.replace('script.js?v=4.2.4', 'script.js?v=4.2.5')
           h = h.replace('v4.2.4 | Design & Developed', 'v4.2.5 | Design & Developed')
-
           old_citizen = 'id="borrow-citizen" maxlength="13" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required'
           new_citizen = 'id="borrow-citizen" maxlength="13" inputmode="numeric" pattern="[0-9]{13}" autocomplete="off" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required'
-          if old_citizen in h:
-              h = h.replace(old_citizen, new_citizen, 1)
-
           old_phone = 'id="borrow-phone" maxlength="10" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required'
           new_phone = 'id="borrow-phone" maxlength="10" inputmode="tel" pattern="[0-9]{10}" autocomplete="tel" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required'
+          if old_citizen in h:
+              h = h.replace(old_citizen, new_citizen, 1)
           if old_phone in h:
               h = h.replace(old_phone, new_phone, 1)
-
           p.write_text(h, encoding='utf-8')
           PY
 
@@ -114,14 +53,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q "Frontend Controller API (v4.2.5 Data Integrity & Security)" script.js
-          grep -q "autoRepairEquipmentStatusOnce" script.js
-          grep -q "getSessionValue('role') || 'STAFF'" script.js
-          grep -q "style.css?v=4.2.5" index.html
-          grep -q "script.js?v=4.2.5" index.html
-          grep -q "v4.2.5 | Design & Developed" index.html
-          grep -q 'pattern="\[0-9\]{13}"' index.html
-          grep -q 'pattern="\[0-9\]{10}"' index.html
+          grep -Fq 'Frontend Controller API (v4.2.5 Data Integrity & Security)' script.js
+          grep -Fq "getSessionValue('role') || 'STAFF'" script.js
+          grep -Fq "run('syncEquipmentStatus', {})" script.js
+          grep -Fq 'style.css?v=4.2.5' index.html
+          grep -Fq 'script.js?v=4.2.5' index.html
+          grep -Fq 'v4.2.5 | Design & Developed' index.html
+          grep -Fq 'pattern="[0-9]{13}"' index.html
+          grep -Fq 'pattern="[0-9]{10}"' index.html
 
       - name: Commit v4.2.5
         shell: bash
