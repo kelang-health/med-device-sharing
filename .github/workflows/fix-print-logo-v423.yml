@@ -1,0 +1,84 @@
+name: One-shot v4.2.3 logo syntax repair
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-print-logo-v423.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair-index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Repair malformed logo handlers and print preload
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          lines = text.splitlines()
+          out = []
+          found = {'side': False, 'nav': False, 'print': False}
+
+          for line in lines:
+              indent = line[:len(line) - len(line.lstrip())]
+              if 'id="side-logo"' in line:
+                  out.append(indent + '<img id="side-logo" src="assets/logo.png" alt="Agency Logo" class="h-10 w-10 object-contain rounded-full shadow-sm bg-white flex-shrink-0" />')
+                  found['side'] = True
+                  continue
+              if 'id="nav-logo"' in line:
+                  out.append(indent + '<img id="nav-logo" src="assets/logo.png" alt="Logo" class="h-10 w-auto object-contain flex-shrink-0" />')
+                  found['nav'] = True
+                  continue
+              if 'id="print-logo"' in line:
+                  out.append(indent + '<img id="print-logo" src="assets/logo.png" alt="Logo" class="h-20 w-auto mr-20 object-contain" />')
+                  found['print'] = True
+                  continue
+              out.append(line)
+
+          if not all(found.values()):
+              raise SystemExit(f'Missing expected logo element(s): {found}')
+
+          text = '\n'.join(out) + '\n'
+          text = text.replace('style.css?v=4.2.0', 'style.css?v=4.2.3')
+          text = text.replace('script.js?v=4.2.0', 'script.js?v=4.2.3')
+          text = text.replace('ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.2.2 |', 'ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.2.3 |')
+
+          # Guard against the exact malformed inline-handler pattern that caused
+          # "Unexpected number" at the old side/nav logo lines.
+          for n, line in enumerate(text.splitlines(), 1):
+              if 'onerror=' in line and "stroke-width='10'" in line:
+                  raise SystemExit(f'Malformed inline logo handler still present at line {n}')
+
+          path.write_text(text, encoding='utf-8')
+          print('Repaired index.html for v4.2.3')
+          PY
+
+      - name: Verify repaired logo markup
+        shell: bash
+        run: |
+          grep -n 'id="side-logo"' index.html
+          grep -n 'id="nav-logo"' index.html
+          grep -n 'id="print-logo"' index.html
+          grep -n 'script.js?v=4.2.3' index.html
+          grep -n 'style.css?v=4.2.3' index.html
+
+      - name: Commit repair
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No changes required.'
+            exit 0
+          fi
+          git config user.name 'kelang-health'
+          git config user.email 'mithong3@gmail.com'
+          git add index.html
+          git commit -m 'v4.2.3: fix logo inline syntax and preload print logo'
+          git push
