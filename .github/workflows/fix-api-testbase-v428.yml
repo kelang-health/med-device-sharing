@@ -1,0 +1,46 @@
+name: Switch to verified v4.2.8 API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-api-testbase-v428.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update API URL and bust script cache
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          old = 'https://script.google.com/macros/s/AKfycbwotdhnqLqGUXyzu5ljliz1Seb9g_s-KoQlJvufmegGgbo3ue77u1WbU1SY8VcJ4-a3OA/exec'
+          new = 'https://script.google.com/macros/s/AKfycbwgfgEf9T8NbQexeUxPHelNZzdY6XTrdaEfBd6x4UXyPW44reZTh9dUB1g0kFu0_aP0EQ/exec'
+
+          p = Path('script.js')
+          s = p.read_text(encoding='utf-8')
+          if old not in s:
+              raise SystemExit('Old API URL not found in script.js')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('index.html')
+          h = p.read_text(encoding='utf-8')
+          h = re.sub(r'script\.js\?v=4\.2\.8(?:\.\d+)?', 'script.js?v=4.2.8.2', h)
+          p.write_text(h, encoding='utf-8')
+
+      - name: Commit frontend API switch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add script.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "v4.2.8: switch frontend to verified Apps Script deployment"
+          git push
