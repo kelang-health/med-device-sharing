@@ -1,9 +1,9 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.6 Secure Image Preview Fix)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.7 Backend API Update)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzPHiANxxUEHUoAKyK1hHfGWuZN_ihkI8xQ3WXkLyPFG5DDONW5limoB-h6egfOsNKgzA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx-cuNjQYkHIT2CcJIrqbxmZjiCeCQLHcuKZNZFe7uM6-ZZo0_MfiGLYcX1pHHPoiiAfg/exec";
 
 
 
