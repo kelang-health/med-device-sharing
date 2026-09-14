@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=4.2.0" />
+    <link rel="stylesheet" href="style.css?v=4.2.3" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -18,7 +18,7 @@
         <div>
             <div class="p-4 border-b border-gray-50 flex items-center justify-between bg-indigo-50/30">
                 <div class="flex items-center gap-3 overflow-hidden">
-                    <img id="side-logo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><rect width='120' height='120' rx='30' fill='%23e0e7ff'/><circle cx='60' cy='60' r='40' fill='%234f46e5'/><path d='M60 42v36M42 60h36' stroke='white' stroke-width='10' stroke-linecap='round'/></svg>" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'120\' viewBox=\'0 0 120 120\'><rect width=\'120\' height=\'120\' rx=\'30\' fill=\'%23e0e7ff\'/><circle cx=\'60\' cy=\'60\' r=\'40\' fill=\'%234f46e5\'/><path d=\'M60 42v36M42 60h36\' stroke=\'white\' stroke-width='10' stroke-linecap='round\'/></svg>'" alt="Agency Logo" class="h-10 w-10 object-contain rounded-full shadow-sm bg-white flex-shrink-0" />
+                    <img id="side-logo" src="assets/logo.png" alt="Agency Logo" class="h-10 w-10 object-contain rounded-full shadow-sm bg-white flex-shrink-0" />
                     <div class="agency-name-block overflow-hidden transition-all duration-200">
                         <h2 id="side-agency-title" class="text-xs font-bold text-gray-700 truncate">ศูนย์กายอุปกรณ์</h2>
                         <span class="admin-badge text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full block w-max mt-0.5"><i class="fa-solid fa-user-shield mr-1"></i>เจ้าหน้าที่</span>
@@ -85,7 +85,7 @@
                     <i class="fa-solid fa-bars text-xl"></i>
                 </button>
                 <div class="flex items-center gap-3 overflow-hidden" id="public-header-brand">
-                    <img id="nav-logo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><rect width='120' height='120' rx='30' fill='%23e0e7ff'/><circle cx='60' cy='60' r='40' fill='%234f46e5'/><path d='M60 42v36M42 60h36' stroke='white' stroke-width='10' stroke-linecap='round'/></svg>" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'120\' viewBox=\'0 0 120 120\'><rect width=\'120\' height=\'120\' rx=\'30\' fill=\'%23e0e7ff\'/><circle cx=\'60\' cy=\'60\' r=\'40\' fill=\'%234f46e5\'/><path d=\'M60 42v36M42 60h36\' stroke=\'white\' stroke-width='10' stroke-linecap='round\'/></svg>'" alt="Logo" class="h-10 w-auto object-contain flex-shrink-0" />
+                    <img id="nav-logo" src="assets/logo.png" alt="Logo" class="h-10 w-auto object-contain flex-shrink-0" />
                     <div class="truncate">
                         <h1 id="nav-title" class="text-base font-bold text-gray-800 truncate">ระบบบริหารจัดการ ยืมคืนอุปกรณ์การแพทย์</h1>
                         <p id="nav-subtitle" class="text-xs text-gray-400 truncate">งานบริการศูนย์กายอุปกรณ์ทางการแพทย์สาธารณสุข</p>
@@ -866,7 +866,7 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.2.2 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.2.3 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
@@ -874,7 +874,7 @@
         <div style="max-width: 800px; margin: 0 auto; padding: 10px 20px; font-family: 'Sarabun', sans-serif; font-size: 15px; line-height: 1.5;">
 
             <div class="flex justify-center items-center mb-6">
-                <img id="print-logo" src="" alt="Logo" class="h-20 w-auto mr-20 object-contain" />
+                <img id="print-logo" src="assets/logo.png" alt="Logo" class="h-20 w-auto mr-20 object-contain" />
                 <div class="text-center">
                     <h3 class="text-base font-bold mb-1 text-gray-700">แบบฟอร์มขอยืมอุปกรณ์เครื่องมือทางการแพทย์</h3>
                     <h2 id="print-agency-name" class="text-xl font-bold leading-relaxed">
@@ -1096,6 +1096,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=4.2.0"></script>
+    <script src="script.js?v=4.2.3"></script>
 </body>
 </html>
