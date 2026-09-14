@@ -1,0 +1,90 @@
+name: One-shot v4.2.4 logo binary repair
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-logo-binary-v424.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair-logo:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download and verify agency logo
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          curl -L --fail --retry 3 --retry-delay 2 \
+            'https://drive.google.com/thumbnail?id=1pwguLRcrEKPthGz3txCuk1H2-k8txKZV&sz=w800' \
+            -o assets/logo.png
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('assets/logo.png')
+          b = p.read_bytes()
+          if len(b) < 10000:
+              raise SystemExit(f'logo too small: {len(b)} bytes')
+          if b[:8] != b'\x89PNG\r\n\x1a\n':
+              raise SystemExit('logo is not a valid PNG signature')
+          print('logo bytes:', len(b))
+          PY
+
+      - name: Cache-bust logo and print assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('assets/logo.png?v=4.2.3', 'assets/logo.png?v=4.2.4')
+          s = s.replace('assets/logo.png"', 'assets/logo.png?v=4.2.4"')
+          s = s.replace('script.js?v=4.2.3', 'script.js?v=4.2.4')
+          s = s.replace('style.css?v=4.2.0', 'style.css?v=4.2.4')
+          s = s.replace('v4.2.3 | Design & Developed', 'v4.2.4 | Design & Developed')
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('script.js')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('Frontend Controller API (v4.2.2 Backend Deployment Guard)', 'Frontend Controller API (v4.2.4 Logo/Print Stability)')
+          s = s.replace('function printLoanReceipt(entryId) {', 'async function printLoanReceipt(entryId) {')
+          needle = "    // 🖨️ บังคับเปลี่ยนสถานะโครงสร้างสไตล์ชีตคุมเลย์เอาต์เฉพาะเครื่องปริ้นท์ตามระเบียบเวอร์ชัน 2.1 ดั้งเดิมของคุณ\n    document.body.classList.add('print-mode-receipt');\n    window.print();"
+          repl = "    // 🖼️ รอให้โลโก้โหลดเสร็จก่อนเปิด Print Preview ป้องกันภาพหาย/ภาพแตก\n    const printLogoEl = document.getElementById('print-logo');\n    if (printLogoEl && !printLogoEl.complete) {\n        await new Promise(resolve => {\n            let finished = false;\n            const done = () => { if (!finished) { finished = true; resolve(); } };\n            printLogoEl.addEventListener('load', done, { once: true });\n            printLogoEl.addEventListener('error', done, { once: true });\n            setTimeout(done, 2000);\n        });\n    }\n    if (printLogoEl && typeof printLogoEl.decode === 'function') {\n        try { await printLogoEl.decode(); } catch (_) {}\n    }\n\n    // 🖨️ บังคับเปลี่ยนสถานะโครงสร้างสไตล์ชีตคุมเลย์เอาต์เฉพาะเครื่องปริ้นท์ตามระเบียบเวอร์ชัน 2.1 ดั้งเดิมของคุณ\n    document.body.classList.add('print-mode-receipt');\n    window.print();"
+          if needle not in s:
+              raise SystemExit('print hook not found')
+          s = s.replace(needle, repl, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Verify files
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'assets/logo.png?v=4.2.4' index.html
+          grep -q 'script.js?v=4.2.4' index.html
+          grep -q 'async function printLoanReceipt' script.js
+          test "$(wc -c < assets/logo.png)" -gt 10000
+
+      - name: Commit repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/logo.png index.html script.js
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+            exit 0
+          fi
+          git commit -m 'v4.2.4: repair agency logo binary and stabilize print logo'
+          git push origin HEAD:main
