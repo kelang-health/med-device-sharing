@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.2 Backend Deployment Guard)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.4 Logo/Print Stability)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -725,7 +725,7 @@ function changeAdminPage(target) {
 }
 
 // ✅ แก้ไขปัญหาปริ้นท์หลุดฟอร์แมต: ล็อกระดับ Body Class ปิดหน้าเว็บอื่นเพื่อพิมพ์ใบยืมแบบโบราณดั้งเดิมตามสัญญาจริง
-function printLoanReceipt(entryId) {
+async function printLoanReceipt(entryId) {
     // 🔍 ค้นหาเรคคอร์ดแถวข้อมูลสัญญาใน State ด้วย EntryID หรือดัชนีแรก
     const row = state.data.find(r => (r.EntryID || r[0]) === entryId);
     if (!row) {
@@ -797,6 +797,21 @@ function printLoanReceipt(entryId) {
     // 🔒 ระบบความปลอดภัยอัตโนมัติ: ดึงชื่อบัญชีแอดมินผู้ที่เข้าสู่ระบบพิมพ์ในขณะนั้นหยอดลงช่องเจ้าหน้าที่ผู้ให้ยืมทันที
     if (document.getElementById('print-sign-staff')) {
         document.getElementById('print-sign-staff').innerText = state.adminName || 'เจ้าหน้าที่ผู้มอบ';
+    }
+
+    // 🖼️ รอให้โลโก้โหลดเสร็จก่อนเปิด Print Preview ป้องกันภาพหาย/ภาพแตก
+    const printLogoEl = document.getElementById('print-logo');
+    if (printLogoEl && !printLogoEl.complete) {
+        await new Promise(resolve => {
+            let finished = false;
+            const done = () => { if (!finished) { finished = true; resolve(); } };
+            printLogoEl.addEventListener('load', done, { once: true });
+            printLogoEl.addEventListener('error', done, { once: true });
+            setTimeout(done, 2000);
+        });
+    }
+    if (printLogoEl && typeof printLogoEl.decode === 'function') {
+        try { await printLogoEl.decode(); } catch (_) {}
     }
 
     // 🖨️ บังคับเปลี่ยนสถานะโครงสร้างสไตล์ชีตคุมเลย์เอาต์เฉพาะเครื่องปริ้นท์ตามระเบียบเวอร์ชัน 2.1 ดั้งเดิมของคุณ
