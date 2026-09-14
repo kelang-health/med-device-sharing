@@ -3,7 +3,7 @@
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbx-cuNjQYkHIT2CcJIrqbxmZjiCeCQLHcuKZNZFe7uM6-ZZo0_MfiGLYcX1pHHPoiiAfg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwotdhnqLqGUXyzu5ljliz1Seb9g_s-KoQlJvufmegGgbo3ue77u1WbU1SY8VcJ4-a3OA/exec";
 
 
 
