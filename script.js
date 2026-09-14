@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.7 Backend API Update)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.8 Legacy Image Compatibility)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -1792,12 +1792,41 @@ function normalizeBorrowImageId(value){
     const v=String(value||'').trim();if(!v)return '';if(!v.startsWith('http'))return v;
     const m=v.match(/[?&]id=([^&]+)/)||v.match(/\/d\/([A-Za-z0-9_-]+)/);return m?decodeURIComponent(m[1]):'';
 }
+const borrowImageErrorCache = new Map();
 async function getBorrowImageDataUrl(value){
-    const id=normalizeBorrowImageId(value);if(!id)return '';if(borrowImageCache.has(id))return borrowImageCache.get(id);
-    const r=await run('getBorrowImage',{fileId:id});if(!r||!r.success||!r.dataUrl)return '';borrowImageCache.set(id,r.dataUrl);return r.dataUrl;
+    const id=normalizeBorrowImageId(value);
+    if(!id)return '';
+    if(borrowImageCache.has(id))return borrowImageCache.get(id);
+    const r=await run('getBorrowImage',{fileId:id});
+    if(!r||!r.success||!r.dataUrl){
+        const msg=(r&&r.error)?String(r.error):'โหลดรูปหลักฐานไม่สำเร็จ';
+        borrowImageErrorCache.set(id,msg);
+        console.warn('โหลดรูปหลักฐานไม่สำเร็จ',{fileId:id,response:r});
+        return '';
+    }
+    borrowImageErrorCache.delete(id);
+    borrowImageCache.set(id,r.dataUrl);
+    return r.dataUrl;
 }
 async function hydrateSecureBorrowImages(root=document){
-    const imgs=[...root.querySelectorAll('img[data-borrow-file-id]')];await Promise.all(imgs.map(async img=>{const u=await getBorrowImageDataUrl(img.dataset.borrowFileId);if(u)img.src=u;else{img.alt='ไม่สามารถโหลดรูปหลักฐาน';img.classList.add('opacity-40');}}));
+    const imgs=[...root.querySelectorAll('img[data-borrow-file-id]')];
+    await Promise.all(imgs.map(async img=>{
+        const id=String(img.dataset.borrowFileId||'').trim();
+        const u=await getBorrowImageDataUrl(id);
+        if(u){
+            img.src=u;
+            img.alt='รูปหลักฐานการยืม';
+            img.title='';
+            img.classList.remove('opacity-40','opacity-60');
+            return;
+        }
+        const err=borrowImageErrorCache.get(id)||'ไม่สามารถโหลดรูปหลักฐาน';
+        const svg='<svg xmlns="http://www.w3.org/2000/svg" width="260" height="170"><rect width="100%" height="100%" fill="#f8fafc"/><text x="50%" y="46%" text-anchor="middle" fill="#64748b" font-size="15">โหลดรูปไม่ได้</text><text x="50%" y="60%" text-anchor="middle" fill="#94a3b8" font-size="11">กรุณาลองใหม่หรือตรวจสอบสิทธิ์ไฟล์</text></svg>';
+        img.src='data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg);
+        img.alt='โหลดรูปหลักฐานไม่สำเร็จ';
+        img.title=err;
+        img.classList.add('opacity-60');
+    }));
 }
 function renderBorrowPhotoPreviews() {
     const wrap=document.getElementById('borrow-photo-previews'),trigger=document.getElementById('borrow-photo-trigger'),triggerLabel=document.getElementById('borrow-photo-trigger-label');if(!wrap)return;
