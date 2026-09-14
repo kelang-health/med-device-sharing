@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.5 Data Integrity & Security)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.6 Secure Image Preview Fix)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -1801,7 +1801,7 @@ async function hydrateSecureBorrowImages(root=document){
 }
 function renderBorrowPhotoPreviews() {
     const wrap=document.getElementById('borrow-photo-previews'),trigger=document.getElementById('borrow-photo-trigger'),triggerLabel=document.getElementById('borrow-photo-trigger-label');if(!wrap)return;
-    const placeholder='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="140"><rect width="100%" height="100%" fill="%23f1f5f9"/><text x="50%" y="52%" text-anchor="middle" fill="%2394a3b8" font-size="14">loading...</text></svg>';
+    const placeholder='data:image/svg+xml;charset=UTF-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="140"><rect width="100%" height="100%" fill="#f1f5f9"/><text x="50%" y="52%" text-anchor="middle" fill="#94a3b8" font-size="14">loading...</text></svg>');
     const existingHtml=existingBorrowImageIds.map((id,idx)=>`<div class="photo-preview-item"><img src="${placeholder}" data-borrow-file-id="${escapeHtml(normalizeBorrowImageId(id))}" alt="รูปหลักฐานเดิม ${idx+1}" /><div class="photo-preview-remove" onclick="removeExistingBorrowImage(${idx})" title="เอารูปนี้ออก"><i class="fa-solid fa-xmark"></i></div></div>`).join('');
     const newHtml=borrowPhotos.map((src,idx)=>`<div class="photo-preview-item"><img src="${src}" alt="รูปหลักฐานใหม่ ${idx+1}" /><span class="absolute top-1 left-1 bg-teal-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">ใหม่</span><div class="photo-preview-remove" onclick="removeBorrowPhoto(${idx})" title="เอารูปนี้ออก"><i class="fa-solid fa-xmark"></i></div></div>`).join('');
     const totalCount=existingBorrowImageIds.length+borrowPhotos.length;if(totalCount===0){wrap.classList.add('hidden');wrap.innerHTML='';}else{wrap.classList.remove('hidden');wrap.innerHTML=existingHtml+newHtml;hydrateSecureBorrowImages(wrap);}
