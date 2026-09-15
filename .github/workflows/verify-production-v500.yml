@@ -1,0 +1,46 @@
+name: Verify production v5.0.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-production-v500.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static syntax and production checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check script.js
+          grep -F 'txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api' script.js
+          grep -F 'script.js?v=5.0.0' index.html
+          grep -F 'v5.0.0' index.html
+
+          SITE='https://kelang-health.github.io/med-device-sharing/'
+          API='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api'
+          curl -fsSL --retry 4 --retry-delay 5 --max-time 30 "$SITE" -o live.html
+          grep -F 'script.js?v=5.0.0' live.html
+          curl -fsSL --retry 4 --retry-delay 5 --max-time 30 "${SITE}script.js?v=5.0.0" -o live.js
+          grep -F 'txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api' live.js
+
+          curl -fsSL --max-time 30 -H 'Content-Type: text/plain;charset=utf-8' \
+            --data '{"action":"getPublicDashboard","payload":{}}' "$API" -o dash.json
+          curl -fsSL --max-time 30 -H 'Content-Type: text/plain;charset=utf-8' \
+            --data '{"action":"validateSession","payload":{}}' "$API" -o private.json
+          python - <<'PY'
+          import json
+          d=json.load(open('dash.json'))
+          assert d.get('success') is True, d
+          x=d.get('data') or {}
+          assert (x.get('total'),x.get('available'),x.get('borrowed'))==(117,61,56),x
+          p=json.load(open('private.json'))
+          assert p.get('success') is False and p.get('needLogin') is True,p
+          print('production v5 verification passed')
+          PY
