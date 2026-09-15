@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.4 Secure Image Refresh)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.5 Missing Image Recovery)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -1818,6 +1818,9 @@ function normalizeBorrowImageId(value){
     const v=String(value||'').trim();if(!v)return '';if(!v.startsWith('http'))return v;
     const m=v.match(/[?&]id=([^&]+)/)||v.match(/\/d\/([A-Za-z0-9_-]+)/);return m?decodeURIComponent(m[1]):'';
 }
+function isLegacyImageUnavailableError(message){
+    return String(message||'').includes('รูปหลักฐานเดิมนี้ไม่พร้อมใช้งานในคลังใหม่');
+}
 const borrowImageErrorCache = new Map();
 async function getBorrowImageDataUrl(value, forceRefresh=false){
     const id=normalizeBorrowImageId(value);
@@ -1858,11 +1861,24 @@ async function hydrateSecureBorrowImages(root=document){
             return;
         }
         const err=borrowImageErrorCache.get(id)||'ไม่สามารถโหลดรูปหลักฐาน';
-        const svg='<svg xmlns="http://www.w3.org/2000/svg" width="260" height="170"><rect width="100%" height="100%" fill="#f8fafc"/><text x="50%" y="46%" text-anchor="middle" fill="#64748b" font-size="15">โหลดรูปไม่ได้</text><text x="50%" y="60%" text-anchor="middle" fill="#94a3b8" font-size="11">กรุณาลองใหม่หรือตรวจสอบสิทธิ์ไฟล์</text></svg>';
+        const legacyMissing=isLegacyImageUnavailableError(err);
+        const title=legacyMissing?'รูปเดิมกู้ไม่ได้':'โหลดรูปไม่ได้';
+        const detail=legacyMissing?'ไฟล์ต้นทางเดิมไม่พร้อม — กรุณาแนบรูปทดแทน':'กรุณาลองใหม่หรือตรวจสอบสิทธิ์ไฟล์';
+        const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="260" height="170"><rect width="100%" height="100%" fill="${legacyMissing?'#fff7ed':'#f8fafc'}"/><text x="50%" y="44%" text-anchor="middle" fill="${legacyMissing?'#c2410c':'#64748b'}" font-size="15" font-weight="700">${title}</text><text x="50%" y="60%" text-anchor="middle" fill="#94a3b8" font-size="11">${detail}</text></svg>`;
         img.src='data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg);
-        img.alt='โหลดรูปหลักฐานไม่สำเร็จ';
-        img.title=err;
-        img.classList.add('opacity-60');
+        img.alt=legacyMissing?'รูปเดิมไม่สามารถกู้ได้':'โหลดรูปหลักฐานไม่สำเร็จ';
+        img.title=legacyMissing?'ไฟล์รูปเดิมไม่สามารถเข้าถึงได้ตั้งแต่ขั้นตอนย้ายข้อมูล กรุณาแนบรูปทดแทน':err;
+        img.classList.add('opacity-80');
+        if(legacyMissing){
+            img.dataset.legacyUnavailable='1';
+            const item=img.closest('.photo-preview-item');
+            if(item&&!item.querySelector('.legacy-missing-badge')){
+                const badge=document.createElement('span');
+                badge.className='legacy-missing-badge absolute bottom-1 left-1 bg-orange-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full';
+                badge.textContent='ต้องแนบใหม่';
+                item.appendChild(badge);
+            }
+        }
     }));
 }
 function renderBorrowPhotoPreviews() {
@@ -1885,14 +1901,26 @@ async function viewBorrowImages(entryId) {
     document.getElementById('modal-image-gallery').classList.add('active');
     if(!ids.length){body.innerHTML=`<div class="col-span-full empty-state"><i class="fa-solid fa-image text-3xl"></i><span>ไม่มีรูปภาพหลักฐานแนบสำหรับรายการนี้</span></div>`;return;}
     body.innerHTML='<div class="col-span-full text-center text-gray-400 py-6"><i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังโหลดรูปอย่างปลอดภัย...</div>';
-    const urls=await Promise.all(ids.map(id=>getBorrowImageDataUrl(id))),pairs=ids.map((id,i)=>({id,url:urls[i]})).filter(x=>!!x.url);
-    if(!pairs.length){
-        const errors=ids.map(id=>borrowImageErrorCache.get(normalizeBorrowImageId(id))).filter(Boolean);
-        const detail=errors[0]||'กรุณาตรวจสิทธิ์ไฟล์หรือ Supabase Storage';
-        body.innerHTML=`<div class="col-span-full empty-state text-rose-500">ไม่สามารถอ่านรูปหลักฐานได้<br><span class="text-xs text-gray-500">${escapeHtml(detail)}</span></div>`;return;
-    }
-    body.innerHTML=pairs.map((x,i)=>`<div class="gallery-photo-item"><img src="${x.url}" data-secure-gallery-index="${i}" alt="รูปหลักฐานการยืม" /></div>`).join('');
-    [...body.querySelectorAll('img[data-secure-gallery-index]')].forEach(img=>{img.onclick=async()=>{const pair=pairs[Number(img.dataset.secureGalleryIndex)];const w=window.open('about:blank','_blank');const fresh=await getBorrowImageDataUrl(pair.id,true);if(fresh){if(w)w.location.href=fresh;else window.location.href=fresh;}else if(w)w.close();};});
+    const urls=await Promise.all(ids.map(id=>getBorrowImageDataUrl(id)));
+    const results=ids.map((id,i)=>{const normalized=normalizeBorrowImageId(id),error=borrowImageErrorCache.get(normalized)||'';return {id,normalized,url:urls[i],error,legacyMissing:!urls[i]&&isLegacyImageUnavailableError(error)};});
+    const valid=results.filter(x=>!!x.url),legacyMissing=results.filter(x=>x.legacyMissing),otherFailed=results.filter(x=>!x.url&&!x.legacyMissing);
+    const validHtml=valid.map((x,i)=>`<div class="gallery-photo-item"><img src="${x.url}" data-secure-gallery-index="${i}" alt="รูปหลักฐานการยืม" /></div>`).join('');
+    const missingHtml=legacyMissing.map(x=>`<div class="gallery-photo-item flex flex-col items-center justify-center text-center p-4 bg-orange-50 border border-orange-200 rounded-xl min-h-[180px]"><i class="fa-solid fa-triangle-exclamation text-3xl text-orange-500 mb-2"></i><div class="font-bold text-orange-700">รูปเดิมไม่สามารถกู้ได้</div><div class="text-[11px] text-gray-500 mt-1">ไฟล์ต้นทาง Google Drive ไม่พร้อมตั้งแต่ขั้นตอนย้ายข้อมูล</div><div class="text-[10px] text-gray-400 mt-2 break-all">${escapeHtml(x.normalized)}</div></div>`).join('');
+    const failedHtml=otherFailed.map(x=>`<div class="gallery-photo-item flex flex-col items-center justify-center text-center p-4 bg-rose-50 border border-rose-200 rounded-xl min-h-[180px]"><i class="fa-solid fa-triangle-exclamation text-3xl text-rose-500 mb-2"></i><div class="font-bold text-rose-700">โหลดรูปไม่สำเร็จ</div><div class="text-[11px] text-gray-500 mt-1">${escapeHtml(x.error||'กรุณาลองใหม่อีกครั้ง')}</div></div>`).join('');
+    if(!valid.length&&!legacyMissing.length&&!otherFailed.length){body.innerHTML='<div class="col-span-full empty-state text-rose-500">ไม่สามารถอ่านรูปหลักฐานได้</div>';return;}
+    const actionHtml=legacyMissing.length?`<div class="col-span-full mt-2 rounded-xl border border-orange-200 bg-orange-50 p-3 text-center"><div class="text-sm font-bold text-orange-800">พบรูปเดิมที่ไม่สามารถกู้ได้ ${legacyMissing.length} รูป</div><div class="text-xs text-orange-700 mt-1">ให้แนบรูปทดแทนในรายการเดิม โดยระบบจะเก็บประวัติการอ้างอิงไฟล์เดิมไว้ใน migration log</div><button type="button" class="mt-3 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-4 py-2 rounded-xl" onclick="replaceUnavailableBorrowImage('${escapeJsSingleQuoted(entryId)}','${escapeJsSingleQuoted(legacyMissing[0].normalized)}')"><i class="fa-solid fa-camera mr-1"></i> แก้ไขรายการและแนบรูปทดแทน</button></div>`:'';
+    body.innerHTML=validHtml+missingHtml+failedHtml+actionHtml;
+    [...body.querySelectorAll('img[data-secure-gallery-index]')].forEach(img=>{img.onclick=async()=>{const pair=valid[Number(img.dataset.secureGalleryIndex)];const w=window.open('about:blank','_blank');const fresh=await getBorrowImageDataUrl(pair.id,true);if(fresh){if(w)w.location.href=fresh;else window.location.href=fresh;}else if(w)w.close();};});
+}
+function replaceUnavailableBorrowImage(entryId,missingId){
+    closeImageGallery();
+    editBorrowRecord(entryId);
+    const before=existingBorrowImageIds.length;
+    existingBorrowImageIds=existingBorrowImageIds.filter(id=>normalizeBorrowImageId(id)!==normalizeBorrowImageId(missingId));
+    if(existingBorrowImageIds.length!==before)renderBorrowPhotoPreviews();
+    Swal.fire({title:'พร้อมแนบรูปทดแทน',html:'ระบบนำรูปเดิมที่กู้ไม่ได้ออกจาก <b>ฟอร์มแก้ไขชั่วคราว</b> แล้ว<br><span class="text-xs text-gray-500">ฐานข้อมูลจะยังไม่เปลี่ยนจนกว่าคุณจะเลือกรูปใหม่และกด “อัปเดตข้อมูลรายการยืม”</span>',icon:'info',confirmButtonText:'รับทราบ'}).then(()=>{
+        const btn=document.getElementById('borrow-photo-trigger');if(btn)btn.scrollIntoView({behavior:'smooth',block:'center'});
+    });
 }
 function closeImageGallery(){document.getElementById('modal-image-gallery').classList.remove('active');}
 function openEquipmentModal() { document.getElementById('modal-equipment').classList.add('active'); }
