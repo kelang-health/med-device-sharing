@@ -1,0 +1,69 @@
+name: Cutover Production to Supabase v5.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cutover-v51-full-parity.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cutover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch production frontend to v5.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('script.js').read_text(encoding='utf-8')
+          i=Path('index.html').read_text(encoding='utf-8')
+
+          old='const API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api";'
+          new='const API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api-v51";\nconst ANALYTICS_API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-analytics-v51";'
+          assert old in s, 'production API marker not found'
+          s=s.replace(old,new,1)
+          s=s.replace('Frontend Controller API (v5.0.0 Supabase Core)','Frontend Controller API (v5.1.0 Supabase Full Parity)',1)
+
+          marker='    if (sessionToken) payload.token = sessionToken;\n'
+          routing="    const endpoint = ['getManagementAnalytics','getProcurementPlan'].includes(action) ? ANALYTICS_API_URL : API_URL;\n"
+          assert marker in s
+          s=s.replace(marker,marker+routing,1)
+          s=s.replace('const response = await fetch(API_URL, {','const response = await fetch(endpoint, {',1)
+          s=s.replace('${escapeHtml(API_URL)}</span>','${escapeHtml(endpoint)}</span>',1)
+
+          old_webhook='https://tgeezbwbrovfyjbeykrj.supabase.co/functions/v1/line-webhook-gateway'
+          new_webhook='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/line-webhook-gateway'
+          s=s.replace(old_webhook,new_webhook)
+          i=i.replace(old_webhook,new_webhook)
+
+          s=s.replace('โครงสร้างข้อมูลพร้อมใช้งาน v4.1.1','โครงสร้างข้อมูลพร้อมใช้งาน v5.1.0')
+          s=s.replace('อัปเกรดโครงสร้างเป็น v4.1.1?','ตรวจสอบโครงสร้าง Supabase v5.1.0?')
+          s=s.replace('กรุณา Deploy Backend v4.1.1 ก่อน','กรุณาตรวจสอบ Supabase Backend v5.1.0')
+          s=s.replace('กรุณาตรวจสิทธิ์ไฟล์หรือ Backend v4.1.1','กรุณาตรวจสิทธิ์ไฟล์หรือ Supabase Storage')
+
+          i=i.replace('Token และ Channel Secret เก็บใน Apps Script Script Properties ไม่บันทึกใน GitHub','Token, Channel Secret และ Target ID เก็บแบบเข้ารหัสใน Supabase Vault ไม่บันทึกใน GitHub')
+          i=i.replace('Google Apps Script อาจรันใกล้เวลาที่เลือกประมาณ ±15 นาที','Supabase Scheduler ใช้เวลา Asia/Bangkok ตามเวลาที่ตั้งไว้')
+          i=i.replace('style.css?v=5.0.0','style.css?v=5.1.0')
+          i=i.replace('script.js?v=5.0.0','script.js?v=5.1.0')
+          i=i.replace('ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.0.0','ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.1.0')
+
+          Path('script.js').write_text(s,encoding='utf-8')
+          Path('index.html').write_text(i,encoding='utf-8')
+          PY
+          node --check script.js
+          grep -F 'med-device-api-v51' script.js
+          grep -F 'med-device-analytics-v51' script.js
+          grep -F 'script.js?v=5.1.0' index.html
+          git config user.name 'kelang-health'
+          git config user.email 'mithong3@gmail.com'
+          git add script.js index.html
+          git diff --cached --check
+          git commit -m 'v5.1.0: cut over production to Supabase full parity gateway'
+          git push origin main
