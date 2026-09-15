@@ -1,0 +1,60 @@
+name: Upgrade Supabase Health v5.1.3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/upgrade-supabase-health-v513.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply health monitor patch
+        run: |
+          python tools/patch_supabase_health_v513.py
+          node --check script.js
+      - name: Verify health monitoring UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          h=Path('index.html').read_text(encoding='utf-8')
+          j=Path('script.js').read_text(encoding='utf-8')
+          assert 'supabase-health-overall' in h
+          assert 'Supabase System Health' in h
+          assert 'script.js?v=5.1.3' in h
+          assert 'SUPABASE_HEALTH_API_URL' in j
+          assert 'med-device-health-v512' in j
+          assert 'loadSupabaseHealthStatus(false);' in j
+          assert 'async function requestSupabaseHealth' in j
+          assert 'async function loadSupabaseHealthStatus' in j
+          print('health UI structure passed')
+          PY
+      - name: Verify public health endpoint
+        run: |
+          set -euo pipefail
+          u='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-health-v512'
+          out=$(curl -fsS --max-time 30 "$u")
+          echo "$out" | grep -q 'med-device-health'
+          echo "$out" | grep -q '5.1.2'
+      - name: Verify health endpoint rejects anonymous diagnostics
+        run: |
+          set -euo pipefail
+          u='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-health-v512'
+          code=$(curl -sS --max-time 30 -o /tmp/health.json -w '%{http_code}' -X POST -H 'Content-Type: text/plain;charset=utf-8' --data '{"payload":{}}' "$u")
+          test "$code" = 401
+          grep -q 'needLogin' /tmp/health.json
+      - name: Commit upgrade
+        run: |
+          git config user.name 'kelang-health'
+          git config user.email 'mithong3@gmail.com'
+          git add script.js index.html
+          git diff --cached --check
+          git commit -m 'v5.1.3: add Supabase system health monitoring'
+          git push origin main
