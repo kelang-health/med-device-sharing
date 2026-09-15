@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.3 Supabase Health Monitoring)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.4 Secure Image Refresh)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -101,6 +101,7 @@ let borrowPhotos = []; // เก็บรูปหลักฐานที่แ
 let editingBorrowId = null; // ถ้าไม่ใช่ null แปลว่ากำลังอยู่ในโหมด "แก้ไขรายการยืมเดิม" (ไม่ใช่สร้างใหม่)
 let existingBorrowImageIds = []; // รหัสไฟล์รูปภาพเดิมที่แนบไว้แล้ว (ตอนแก้ไขรายการ) ที่ผู้ใช้ยังต้องการเก็บไว้
 const borrowImageCache = new Map();
+const BORROW_IMAGE_CACHE_TTL_MS = 8 * 60 * 1000; // signed URL มีอายุ 10 นาที จึง refresh ก่อนหมดอายุ
 
 async function run(action, payload = {}) {
     const sessionToken = getSessionToken();
@@ -1818,10 +1819,13 @@ function normalizeBorrowImageId(value){
     const m=v.match(/[?&]id=([^&]+)/)||v.match(/\/d\/([A-Za-z0-9_-]+)/);return m?decodeURIComponent(m[1]):'';
 }
 const borrowImageErrorCache = new Map();
-async function getBorrowImageDataUrl(value){
+async function getBorrowImageDataUrl(value, forceRefresh=false){
     const id=normalizeBorrowImageId(value);
     if(!id)return '';
-    if(borrowImageCache.has(id))return borrowImageCache.get(id);
+    const cached=borrowImageCache.get(id);
+    if(!forceRefresh && cached && cached.url && cached.expiresAt > Date.now()+15000) return cached.url;
+    if(cached) borrowImageCache.delete(id);
+    borrowImageErrorCache.delete(id);
     const r=await run('getBorrowImage',{fileId:id});
     if(!r||!r.success||!r.dataUrl){
         const msg=(r&&r.error)?String(r.error):'โหลดรูปหลักฐานไม่สำเร็จ';
@@ -1830,7 +1834,7 @@ async function getBorrowImageDataUrl(value){
         return '';
     }
     borrowImageErrorCache.delete(id);
-    borrowImageCache.set(id,r.dataUrl);
+    borrowImageCache.set(id,{url:r.dataUrl,expiresAt:Date.now()+BORROW_IMAGE_CACHE_TTL_MS});
     return r.dataUrl;
 }
 async function hydrateSecureBorrowImages(root=document){
@@ -1839,6 +1843,14 @@ async function hydrateSecureBorrowImages(root=document){
         const id=String(img.dataset.borrowFileId||'').trim();
         const u=await getBorrowImageDataUrl(id);
         if(u){
+            img.dataset.secureImageRetried='0';
+            img.onerror=async()=>{
+                if(img.dataset.secureImageRetried==='1')return;
+                img.dataset.secureImageRetried='1';
+                borrowImageCache.delete(id);
+                const fresh=await getBorrowImageDataUrl(id,true);
+                if(fresh && fresh!==img.src) img.src=fresh;
+            };
             img.src=u;
             img.alt='รูปหลักฐานการยืม';
             img.title='';
@@ -1873,10 +1885,14 @@ async function viewBorrowImages(entryId) {
     document.getElementById('modal-image-gallery').classList.add('active');
     if(!ids.length){body.innerHTML=`<div class="col-span-full empty-state"><i class="fa-solid fa-image text-3xl"></i><span>ไม่มีรูปภาพหลักฐานแนบสำหรับรายการนี้</span></div>`;return;}
     body.innerHTML='<div class="col-span-full text-center text-gray-400 py-6"><i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังโหลดรูปอย่างปลอดภัย...</div>';
-    const urls=await Promise.all(ids.map(getBorrowImageDataUrl)),valid=urls.filter(Boolean);
-    if(!valid.length){body.innerHTML='<div class="col-span-full empty-state text-rose-500">ไม่สามารถอ่านรูปหลักฐานได้ กรุณาตรวจสิทธิ์ไฟล์หรือ Supabase Storage</div>';return;}
-    body.innerHTML=valid.map((url,i)=>`<div class="gallery-photo-item"><img src="${url}" data-secure-gallery-index="${i}" alt="รูปหลักฐานการยืม" /></div>`).join('');
-    [...body.querySelectorAll('img[data-secure-gallery-index]')].forEach(img=>{img.onclick=()=>window.open(valid[Number(img.dataset.secureGalleryIndex)],'_blank');});
+    const urls=await Promise.all(ids.map(id=>getBorrowImageDataUrl(id))),pairs=ids.map((id,i)=>({id,url:urls[i]})).filter(x=>!!x.url);
+    if(!pairs.length){
+        const errors=ids.map(id=>borrowImageErrorCache.get(normalizeBorrowImageId(id))).filter(Boolean);
+        const detail=errors[0]||'กรุณาตรวจสิทธิ์ไฟล์หรือ Supabase Storage';
+        body.innerHTML=`<div class="col-span-full empty-state text-rose-500">ไม่สามารถอ่านรูปหลักฐานได้<br><span class="text-xs text-gray-500">${escapeHtml(detail)}</span></div>`;return;
+    }
+    body.innerHTML=pairs.map((x,i)=>`<div class="gallery-photo-item"><img src="${x.url}" data-secure-gallery-index="${i}" alt="รูปหลักฐานการยืม" /></div>`).join('');
+    [...body.querySelectorAll('img[data-secure-gallery-index]')].forEach(img=>{img.onclick=async()=>{const pair=pairs[Number(img.dataset.secureGalleryIndex)];const w=window.open('about:blank','_blank');const fresh=await getBorrowImageDataUrl(pair.id,true);if(fresh){if(w)w.location.href=fresh;else window.location.href=fresh;}else if(w)w.close();};});
 }
 function closeImageGallery(){document.getElementById('modal-image-gallery').classList.remove('active');}
 function openEquipmentModal() { document.getElementById('modal-equipment').classList.add('active'); }
