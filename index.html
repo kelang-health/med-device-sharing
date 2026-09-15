@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=4.2.8" />
+    <link rel="stylesheet" href="style.css?v=5.0.0" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -795,7 +795,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block font-bold text-gray-500 mb-1">เลขประจำตัวประชาชน (13 หลัก)</label>
-                        <input type="text" id="borrow-citizen" maxlength="13" inputmode="numeric" pattern="[0-9]{13}" autocomplete="off" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
+                        <input type="text" id="borrow-citizen" maxlength="13" inputmode="numeric" pattern="[0-9]{13}" autocomplete="off" placeholder="รายการใหม่กรอก 13 หลัก; แก้ไขเดิมเว้นว่างได้" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" />
                     </div>
                     <div>
                         <label class="block font-bold text-gray-500 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
@@ -866,7 +866,7 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.2.8 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.0.0 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
@@ -1001,8 +1001,8 @@
             </div>
             <form onsubmit="submitLogin(event)" class="space-y-4">
                 <div>
-                    <label class="block font-bold text-gray-400 mb-1 uppercase">Admin ID / บัญชีผู้ใช้งาน</label>
-                    <input type="text" id="login-uid" class="w-full border border-gray-200 px-3 py-2.5 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:outline-none" required />
+                    <label class="block font-bold text-gray-400 mb-1 uppercase">Admin ID หรือ Email / บัญชีผู้ใช้งาน</label>
+                    <input type="text" id="login-uid" placeholder="admin หรือ email@example.com" class="w-full border border-gray-200 px-3 py-2.5 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:outline-none" required />
                 </div>
                 <div>
                     <label class="block font-bold text-gray-400 mb-1 uppercase">Password / รหัสผ่าน</label>
@@ -1068,8 +1068,8 @@
             </div>
             <form id="form-admin-user" onsubmit="submitAddAdminUserForm(event)" class="space-y-4">
                 <div>
-                    <label class="block font-bold text-gray-500 mb-1">ชื่อผู้ใช้งาน (Username)</label>
-                    <input type="text" id="new-admin-id" placeholder="ตัวอย่าง: staff02" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
+                    <label class="block font-bold text-gray-500 mb-1">Email ผู้ใช้งาน (Supabase Auth)</label>
+                    <input type="email" id="new-admin-id" placeholder="ตัวอย่าง: staff02@example.com" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
                 </div>
                 <div>
                     <label class="block font-bold text-gray-500 mb-1">ชื่อที่แสดงผล (Display Name)</label>
@@ -1096,6 +1096,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=4.2.8.2"></script>
+    <script src="script.js?v=5.0.0"></script>
 </body>
 </html>

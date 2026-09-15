@@ -1,14 +1,15 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v4.2.8 Legacy Image Compatibility)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.0.0 Supabase Core)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbwgfgEf9T8NbQexeUxPHelNZzdY6XTrdaEfBd6x4UXyPW44reZTh9dUB1g0kFu0_aP0EQ/exec";
+const API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api";
 
 
 
 const STORAGE_KEYS = {
     token: 'medDevice.adminToken',
+    refreshToken: 'medDevice.refreshToken',
     adminId: 'medDevice.adminId',
     adminName: 'medDevice.adminName',
     theme: 'medDevice.themeMode',
@@ -45,7 +46,7 @@ function migrateLegacyStorage() {
 }
 
 function clearAuthSession() {
-    [STORAGE_KEYS.token, STORAGE_KEYS.adminId, STORAGE_KEYS.adminName, 'adminToken', 'adminId', 'adminName']
+    [STORAGE_KEYS.token, STORAGE_KEYS.refreshToken, STORAGE_KEYS.adminId, STORAGE_KEYS.adminName, 'adminToken', 'adminId', 'adminName']
         .forEach(k => localStorage.removeItem(k));
     state.isAdmin = false;
     state.adminId = '';
@@ -103,7 +104,7 @@ async function run(action, payload = {}) {
     const sessionToken = getSessionToken();
     if (sessionToken) payload.token = sessionToken;
     if (!API_URL || API_URL === "YOUR_GAS_WEB_APP_URL") {
-        console.error("ยังไม่ได้ระบุที่อยู่เว็บบริการ API_URL ของระบบ");
+        console.error("ยังไม่ได้ระบุที่อยู่เว็บบริการ API_URL ของระบบ Supabase");
         return { success: false, error: 'ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์เชื่อมต่อ' };
     }
     // ⏱️ กันไม่ให้คำขอค้างรอตลอดไปแบบไม่มีกำหนด (โดยเฉพาะตอนอัปโหลดรูปภาพที่ Google Apps Script อาจใช้เวลานานผิดปกติ)
@@ -123,13 +124,13 @@ async function run(action, payload = {}) {
         if (!response.ok || !trimmed || looksHtml) {
             const statusText = response.status ? `HTTP ${response.status}` : 'ไม่มี HTTP status';
             const detail = response.status === 404
-                ? 'ไม่พบ Apps Script Web App deployment ที่ URL ปัจจุบัน กรุณา Deploy Web app ใหม่/อัปเดต deployment เดิม แล้วใช้ URL ที่ลงท้ายด้วย /exec'
-                : 'Backend Apps Script ตอบกลับไม่ใช่ JSON กรุณาตรวจสอบ Web App deployment และสิทธิ์การเข้าถึง';
+                ? 'ไม่พบ Supabase Edge Function ที่ URL ปัจจุบัน กรุณาตรวจสอบ deployment ของ med-device-api'
+                : 'Backend Supabase ตอบกลับไม่ใช่ JSON กรุณาตรวจสอบ Edge Function และการเชื่อมต่อ';
             console.error('Backend API ไม่พร้อมใช้งาน:', statusText, trimmed.slice(0, 180));
             if (!window.__backendUnavailableNotified && typeof Swal !== 'undefined') {
                 window.__backendUnavailableNotified = true;
                 Swal.fire({
-                    title: 'Backend Apps Script ไม่พร้อมใช้งาน',
+                    title: 'Backend Supabase ไม่พร้อมใช้งาน',
                     html: `<div class="text-left text-sm leading-6"><b>${statusText}</b><br>${detail}<br><br><span class="text-gray-500">API: ${escapeHtml(API_URL)}</span></div>`,
                     icon: 'error',
                     confirmButtonText: 'รับทราบ'
@@ -142,10 +143,26 @@ async function run(action, payload = {}) {
             result = JSON.parse(trimmed);
         } catch (parseError) {
             console.error('Backend API ส่งข้อมูลที่ไม่ใช่ JSON:', parseError, trimmed.slice(0, 180));
-            return { success: false, error: 'Backend Apps Script ส่งข้อมูลที่ไม่ใช่ JSON กรุณาตรวจสอบ deployment', backendUnavailable: true, httpStatus: response.status || 0 };
+            return { success: false, error: 'Backend Supabase ส่งข้อมูลที่ไม่ใช่ JSON กรุณาตรวจสอบ Edge Function', backendUnavailable: true, httpStatus: response.status || 0 };
         }
         // 🔒 หาก Token หมดอายุ/ไม่ถูกต้อง (เช่น เกิน 6 ชม. หลังล็อกอิน) ให้แจ้งเตือนชัดเจนและพากลับไปหน้าล็อกอินใหม่
         // แทนที่จะปล่อยให้ทุกฟังก์ชันขึ้น "ไม่สำเร็จ" แบบไม่ทราบสาเหตุ
+        if (result && result.needLogin && action !== 'refreshSession' && !payload.__refreshAttempted) {
+            const refreshToken = getSessionValue('refreshToken');
+            if (refreshToken) {
+                payload.__refreshAttempted = true;
+                const refreshed = await run('refreshSession', { refreshToken, __refreshAttempted: true });
+                if (refreshed && refreshed.success && refreshed.token) {
+                    setSessionValue('token', refreshed.token);
+                    setSessionValue('refreshToken', refreshed.refreshToken || refreshToken);
+                    if (refreshed.adminId) setSessionValue('adminId', refreshed.adminId);
+                    if (refreshed.adminName) setSessionValue('adminName', refreshed.adminName);
+                    if (refreshed.role) setSessionValue('role', refreshed.role);
+                    delete payload.token;
+                    return run(action, payload);
+                }
+            }
+        }
         if (result && result.needLogin) {
             if (!window.__sessionExpiredNotified) {
                 window.__sessionExpiredNotified = true;
@@ -1456,6 +1473,15 @@ function exportToCSV(sheetName) {
 async function submitBorrowForm(event) {
     event.preventDefault();
     const isEditing = !!editingBorrowId;
+    const citizenDigits = String(document.getElementById('borrow-citizen')?.value || '').replace(/\D/g, '');
+    if (!isEditing && citizenDigits.length !== 13) {
+        Swal.fire('กรุณาตรวจเลขประชาชน', 'รายการใหม่ต้องกรอกเลขประจำตัวประชาชน 13 หลัก ระบบจะส่งไปประมวลผลแต่เก็บในฐานใหม่เฉพาะเลขท้าย 4 หลัก', 'warning');
+        return;
+    }
+    if (isEditing && citizenDigits && citizenDigits.length !== 13) {
+        Swal.fire('กรุณาตรวจเลขประชาชน', 'หากต้องการแก้เลขประชาชน กรุณากรอกให้ครบ 13 หลัก หรือเว้นว่างเพื่อคงข้อมูลเดิมแบบปกปิด', 'warning');
+        return;
+    }
     const hasPhotos = borrowPhotos.length > 0;
     Swal.fire({
         title: isEditing ? 'กำลังอัปเดตข้อมูล...' : 'กำลังบันทึกเอกสาร...',
@@ -1633,6 +1659,7 @@ async function submitLogin(event) {
     const res = await run('login', { adminId: uid, password: pwd });
     if (res.success) {
         setSessionValue('token', res.token);
+        if (res.refreshToken) setSessionValue('refreshToken', res.refreshToken);
         setSessionValue('adminId', res.adminId);
         setSessionValue('adminName', res.adminName);
         setSessionValue('role', res.role || 'ADMIN');
@@ -1685,7 +1712,7 @@ function editBorrowRecord(entryId) {
     document.getElementById('borrow-serial').value = record.SerialNumber || record[6] || '';
     document.getElementById('borrow-patient').value = record.PatientName || record[13] || '';
     document.getElementById('borrow-name').value = record.BorrowerName || record[1] || '';
-    document.getElementById('borrow-citizen').value = record.CitizenID || record[2] || '';
+    { const cv=String(record.CitizenID || record[2] || ''); document.getElementById('borrow-citizen').value = /^\d{13}$/.test(cv) ? cv : ''; }
     document.getElementById('borrow-phone').value = record.Phone || record[12] || '';
     document.getElementById('borrow-relationship').value = record.Relationship || record[14] || '';
     document.getElementById('borrow-address').value = record.Address || record[3] || '';
