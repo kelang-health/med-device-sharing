@@ -1,9 +1,9 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.10 iPad Safari Print Fix)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.2.0 LINE Equipment Name Notification)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
-const API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api-v51";
+const API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api-v52";
 const ANALYTICS_API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-analytics-v51";
 const SUPABASE_HEALTH_API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-health-v512";
 
