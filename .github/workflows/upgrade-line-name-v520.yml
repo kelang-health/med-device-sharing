@@ -1,0 +1,47 @@
+name: Upgrade LINE equipment-name notifications v5.2.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/upgrade-line-name-v520.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Switch frontend to v5.2 gateway
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('script.js')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('v5.1.10 iPad Safari Print Fix','v5.2.0 LINE Equipment Name Notification',1)
+          s=s.replace('https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api-v51','https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api-v52',1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('index.html')
+          h=p.read_text(encoding='utf-8')
+          h=h.replace('script.js?v=5.1.10','script.js?v=5.2.0')
+          h=h.replace('ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.1.10 |','ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.2.0 |')
+          p.write_text(h,encoding='utf-8')
+          PY
+      - name: Validate
+        run: |
+          node --check script.js
+          grep -q 'med-device-api-v52' script.js
+          grep -q 'v5.2.0 LINE Equipment Name Notification' script.js
+          grep -q 'script.js?v=5.2.0' index.html
+          grep -q 'ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.2.0' index.html
+          git diff --check
+      - name: Commit upgrade
+        run: |
+          git config user.name kelang-health
+          git config user.email mithong3@gmail.com
+          git add index.html script.js
+          git commit -m 'v5.2.0: show equipment names in LINE notifications'
+          git push origin main
