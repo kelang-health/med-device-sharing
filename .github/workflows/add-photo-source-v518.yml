@@ -1,100 +1,26 @@
 name: Add upload or camera source v5.1.8
+
 on:
   push:
     branches: [main]
     paths:
       - '.github/workflows/add-photo-source-v518.yml'
+
 permissions:
   contents: write
+
 jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch photo source controls
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          p=Path('index.html')
-          h=p.read_text(encoding='utf-8')
-          start=h.index('<label class="block font-bold text-gray-500 mb-1.5">ถ่ายรูปหลักฐานการยืมอุปกรณ์ (สูงสุด 3 รูป)</label>')
-          end=h.index('</div>\n                <div class="flex items-start gap-2 bg-emerald', start)
-          new='''<label class="block font-bold text-gray-500 mb-1.5">รูปหลักฐานการยืมอุปกรณ์ (สูงสุด 3 รูป)</label>
-                    <input type="file" id="borrow-photo-upload-input" accept="image/*" class="hidden" onchange="handleBorrowPhotoSelect(event)" />
-                    <input type="file" id="borrow-photo-camera-input" accept="image/*" capture="environment" class="hidden" onchange="handleBorrowPhotoSelect(event)" />
-                    <div id="borrow-photo-previews" class="grid grid-cols-3 gap-2 mb-2 hidden"></div>
-                    <div id="borrow-photo-trigger" class="space-y-2">
-                        <div class="text-[11px] text-gray-400 text-center"><span id="borrow-photo-trigger-label">เพิ่มรูปหลักฐาน (0/3)</span></div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button type="button" onclick="openBorrowPhotoSource('upload')" class="w-full border-2 border-dashed border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40 text-gray-500 hover:text-indigo-600 rounded-xl py-3 flex items-center justify-center gap-2 transition-all">
-                                <i class="fa-solid fa-image"></i><span>อัปโหลดรูป</span>
-                            </button>
-                            <button type="button" onclick="openBorrowPhotoSource('camera')" class="w-full border-2 border-dashed border-gray-200 hover:border-teal-300 hover:bg-teal-50/40 text-gray-500 hover:text-teal-600 rounded-xl py-3 flex items-center justify-center gap-2 transition-all">
-                                <i class="fa-solid fa-camera"></i><span>ถ่ายภาพ</span>
-                            </button>
-                        </div>
-                    </div>
-                '''
-          h=h[:start]+new+h[end:]
-          for a,b in [
-              ('assets/logo.png?v=5.1.7','assets/logo.png?v=5.1.8'),
-              ('style.css?v=5.1.7','style.css?v=5.1.8'),
-              ('script.js?v=5.1.7','script.js?v=5.1.8'),
-              ('ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.1.7 |','ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.1.8 |')]:
-              h=h.replace(a,b)
-          p.write_text(h,encoding='utf-8')
-
-          p=Path('script.js')
-          s=p.read_text(encoding='utf-8')
-          s=s.replace('v5.1.7 Console Hygiene','v5.1.8 Photo Source Choice',1)
-          start=s.index('function replaceUnavailableBorrowImage(entryId,missingId){')
-          end=s.index('function closeImageGallery()', start)
-          replacement=r'''function openBorrowPhotoSource(source){
-    if(existingBorrowImageIds.length + borrowPhotos.length >= 3){
-        Swal.fire('ครบจำนวนแล้ว','แนบรูปหลักฐานได้สูงสุด 3 รูป','info');
-        return;
-    }
-    const inputId=source==='camera'?'borrow-photo-camera-input':'borrow-photo-upload-input';
-    const input=document.getElementById(inputId);
-    if(!input){
-        Swal.fire('ไม่พบช่องเลือกรูป','กรุณารีเฟรชหน้าแล้วลองใหม่','error');
-        return;
-    }
-    input.click();
-}
-function replaceUnavailableBorrowImage(entryId,missingId){
-    closeImageGallery();
-    editBorrowRecord(entryId);
-    const before=existingBorrowImageIds.length;
-    existingBorrowImageIds=existingBorrowImageIds.filter(id=>normalizeBorrowImageId(id)!==normalizeBorrowImageId(missingId));
-    if(existingBorrowImageIds.length!==before)renderBorrowPhotoPreviews();
-    Swal.fire({
-        title:'เพิ่มรูปทดแทน',
-        html:'ระบบนำรูปเดิมที่กู้ไม่ได้ออกจาก <b>ฟอร์มแก้ไขชั่วคราว</b> แล้ว<br><span class="text-xs text-gray-500">เลือกอัปโหลดรูปจากเครื่อง หรือถ่ายภาพใหม่ได้ทันที ข้อมูลจริงจะเปลี่ยนเมื่อกด “อัปเดตข้อมูลรายการยืม” เท่านั้น</span>',
-        icon:'info',
-        showDenyButton:true,
-        showCancelButton:true,
-        confirmButtonText:'อัปโหลดรูป',
-        denyButtonText:'ถ่ายภาพ',
-        cancelButtonText:'เลือกภายหลัง'
-    }).then(result=>{
-        const btn=document.getElementById('borrow-photo-trigger');
-        if(btn)btn.scrollIntoView({behavior:'smooth',block:'center'});
-        if(result.isConfirmed)openBorrowPhotoSource('upload');
-        else if(result.isDenied)openBorrowPhotoSource('camera');
-    });
-}
-'''
-          s=s[:start]+replacement+s[end:]
-          p.write_text(s,encoding='utf-8')
-          PY
+      - name: Run patch helper
+        run: python tools/patch_photo_source_v518.py
       - name: Validate
         run: |
           node --check script.js
           grep -q 'v5.1.8 Photo Source Choice' script.js
-          grep -q "function openBorrowPhotoSource" script.js
+          grep -q 'function openBorrowPhotoSource' script.js
           grep -q 'borrow-photo-upload-input' index.html
           grep -q 'borrow-photo-camera-input' index.html
           grep -q '>อัปโหลดรูป<' index.html
