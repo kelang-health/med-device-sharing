@@ -13,14 +13,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Diagnose and test v5.1 gateway
+      - name: Test v5.1 POST gateway public and auth boundaries
         shell: bash
         run: |
           set -euo pipefail
           API='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api-v51'
-          code=$(curl -sS --max-time 30 -o health.json -w '%{http_code}' "$API?action=health")
-          echo "health HTTP=$code"; cat health.json; echo
-          test "$code" = 200
+          curl -fsSL --max-time 30 -H 'Content-Type: text/plain;charset=utf-8' --data '{"action":"health","payload":{}}' "$API" -o health.json
+          cat health.json
           curl -fsSL --max-time 30 -H 'Content-Type: text/plain;charset=utf-8' --data '{"action":"getPublicDashboard","payload":{}}' "$API" -o dash.json
           cat dash.json
           curl -fsSL --max-time 30 -H 'Content-Type: text/plain;charset=utf-8' --data '{"action":"getData","payload":{"sheetName":"Equipments"}}' "$API" -o eq.json
@@ -31,5 +30,5 @@ jobs:
           d=json.load(open('dash.json')); x=d.get('data') or {}; assert d.get('success') and (x.get('total'),x.get('available'),x.get('borrowed'))==(117,61,56),d
           e=json.load(open('eq.json')); assert e.get('success') and len(e.get('data') or [])==117,e
           p=json.load(open('private.json')); assert p.get('success') is False and p.get('needLogin') is True,p
-          print('v5.1 gateway smoke passed')
+          print('v5.1 POST gateway smoke passed')
           PY
