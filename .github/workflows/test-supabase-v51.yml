@@ -1,0 +1,34 @@
+name: Test Supabase v5.1 Gateway
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/test-supabase-v51.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test v5.1 gateway public and auth boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          API='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api-v51'
+          curl -fsSL --max-time 30 "$API?action=health" -o health.json
+          cat health.json
+          curl -fsSL --max-time 30 -H 'Content-Type: text/plain;charset=utf-8' --data '{"action":"getPublicDashboard","payload":{}}' "$API" -o dash.json
+          cat dash.json
+          curl -fsSL --max-time 30 -H 'Content-Type: text/plain;charset=utf-8' --data '{"action":"getData","payload":{"sheetName":"Equipments"}}' "$API" -o eq.json
+          curl -fsSL --max-time 30 -H 'Content-Type: text/plain;charset=utf-8' --data '{"action":"getLineConfigStatus","payload":{}}' "$API" -o private.json
+          python - <<'PY'
+          import json
+          h=json.load(open('health.json')); assert h.get('success') and h.get('version')=='5.1.0',h
+          d=json.load(open('dash.json')); x=d.get('data') or {}; assert d.get('success') and (x.get('total'),x.get('available'),x.get('borrowed'))==(117,61,56),d
+          e=json.load(open('eq.json')); assert e.get('success') and len(e.get('data') or [])==117,e
+          p=json.load(open('private.json')); assert p.get('success') is False and p.get('needLogin') is True,p
+          print('v5.1 gateway smoke passed')
+          PY
