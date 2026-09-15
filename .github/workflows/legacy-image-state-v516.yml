@@ -1,0 +1,50 @@
+name: Legacy image state handling v5.1.6
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/legacy-image-state-v516.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch expected legacy image handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p=Path('script.js')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('v5.1.5 Missing Image Recovery','v5.1.6 Legacy Image State',1)
+          old="console.warn('โหลดรูปหลักฐานไม่สำเร็จ',{fileId:id,response:r});"
+          new="if(isLegacyImageUnavailableError(msg)) console.info('รูปหลักฐานเก่าไม่มีไฟล์หลัง migration',{fileId:id}); else console.warn('โหลดรูปหลักฐานไม่สำเร็จ',{fileId:id,response:r});"
+          if old not in s:
+              raise SystemExit('console warn anchor not found')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('index.html')
+          h=p.read_text(encoding='utf-8')
+          h=h.replace('style.css?v=5.1.5','style.css?v=5.1.6')
+          h=h.replace('script.js?v=5.1.5','script.js?v=5.1.6')
+          h=h.replace('ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.1.5 |','ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.1.6 |')
+          p.write_text(h,encoding='utf-8')
+          PY
+      - name: Validate
+        run: |
+          node --check script.js
+          grep -q "v5.1.6 Legacy Image State" script.js
+          grep -q "รูปหลักฐานเก่าไม่มีไฟล์หลัง migration" script.js
+          grep -q "script.js?v=5.1.6" index.html
+          grep -q "ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.1.6" index.html
+          git diff --check
+      - name: Commit
+        run: |
+          git config user.name kelang-health
+          git config user.email mithong3@gmail.com
+          git add script.js index.html
+          git commit -m 'v5.1.6: classify unrecoverable legacy image as expected migration state'
+          git push origin main
