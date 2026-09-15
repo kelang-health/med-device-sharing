@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.9 Smartphone Responsive UX)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.10 iPad Safari Print Fix)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -854,12 +854,12 @@ async function printLoanReceipt(entryId) {
 
     document.body.classList.remove('print-mode-tracking');
     document.body.classList.add('print-mode-receipt');
-    try {
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        window.print();
-    } finally {
-        document.body.classList.remove('print-mode-receipt');
-    }
+    // iPad/iPhone Safari may return from window.print() before the native preview
+    // has finished taking its print snapshot. Keep the print-mode class alive so
+    // #print-section remains visible to WebKit while the preview is generated.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await new Promise(resolve => setTimeout(resolve, 120));
+    window.print();
 }
 
 // 🗃️ แคชรายการติดตามที่ผ่านการค้นหา/กรองล่าสุด ใช้ทั้งแสดงผลและพิมพ์รายงาน
@@ -1093,9 +1093,11 @@ function updateSidebarTrackingBadge(overdueTally) {
 function printTrackingReport() {
     // พิมพ์รายงานตามรายการที่ผ่านการค้นหา/กรองล่าสุดทั้งหมด (ไม่จำกัดเฉพาะหน้าที่กำลังแสดงอยู่บนจอ)
     document.getElementById('tracking-print-body').innerHTML = buildTrackingRows(trackingFilteredCache, true);
+    document.body.classList.remove('print-mode-receipt');
     document.body.classList.add('print-mode-tracking');
-    window.print();
-    document.body.classList.remove('print-mode-tracking');
+    // Do not remove the class immediately after print(); iOS/iPadOS Safari can
+    // return before the native print preview has captured the DOM.
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
 }
 
 function renderEquipmentTable() {
