@@ -1,9 +1,10 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.0.0 Supabase Core)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.0 Supabase Full Parity)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
-const API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api";
+const API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api-v51";
+const ANALYTICS_API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-analytics-v51";
 
 
 
@@ -103,6 +104,7 @@ const borrowImageCache = new Map();
 async function run(action, payload = {}) {
     const sessionToken = getSessionToken();
     if (sessionToken) payload.token = sessionToken;
+    const endpoint = ['getManagementAnalytics','getProcurementPlan'].includes(action) ? ANALYTICS_API_URL : API_URL;
     if (!API_URL || API_URL === "YOUR_GAS_WEB_APP_URL") {
         console.error("ยังไม่ได้ระบุที่อยู่เว็บบริการ API_URL ของระบบ Supabase");
         return { success: false, error: 'ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์เชื่อมต่อ' };
@@ -111,7 +113,7 @@ async function run(action, payload = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 วินาที
     try {
-        const response = await fetch(API_URL, {
+        const response = await fetch(endpoint, {
             method: 'POST',
             mode: 'cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -131,7 +133,7 @@ async function run(action, payload = {}) {
                 window.__backendUnavailableNotified = true;
                 Swal.fire({
                     title: 'Backend Supabase ไม่พร้อมใช้งาน',
-                    html: `<div class="text-left text-sm leading-6"><b>${statusText}</b><br>${detail}<br><br><span class="text-gray-500">API: ${escapeHtml(API_URL)}</span></div>`,
+                    html: `<div class="text-left text-sm leading-6"><b>${statusText}</b><br>${detail}<br><br><span class="text-gray-500">API: ${escapeHtml(endpoint)}</span></div>`,
                     icon: 'error',
                     confirmButtonText: 'รับทราบ'
                 }).then(() => { window.__backendUnavailableNotified = false; });
@@ -1354,7 +1356,7 @@ async function loadManagementAnalytics(){
     const r=await run('getManagementAnalytics',{period});
     if(!r||!r.success){
         const msg=String((r&&r.error)||'ไม่สามารถโหลด Management Analytics ได้');
-        const box=document.getElementById('analytics-recommendations');if(box)box.innerHTML=`<div class="text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.1.1 ก่อน':''}</div>`;
+        const box=document.getElementById('analytics-recommendations');if(box)box.innerHTML=`<div class="text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณาตรวจสอบ Supabase Backend v5.1.0':''}</div>`;
         return;
     }
     state.managementAnalytics=r;
@@ -1434,7 +1436,7 @@ async function loadProcurementPlan(){
     const r=await run('getProcurementPlan',{period});
     if(!r||!r.success){
         const msg=String((r&&r.error)||'ไม่สามารถโหลดแผนจัดหาได้');
-        if(body)body.innerHTML=`<tr><td colspan="9" class="p-6 text-center text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.1.1 ก่อน':''}</td></tr>`;
+        if(body)body.innerHTML=`<tr><td colspan="9" class="p-6 text-center text-rose-600">${escapeHtml(msg)}${msg.includes('ไม่พบ Action')?'<br>กรุณาตรวจสอบ Supabase Backend v5.1.0':''}</td></tr>`;
         return;
     }
     state.procurementPlan=r;
@@ -1876,7 +1878,7 @@ async function viewBorrowImages(entryId) {
     if(!ids.length){body.innerHTML=`<div class="col-span-full empty-state"><i class="fa-solid fa-image text-3xl"></i><span>ไม่มีรูปภาพหลักฐานแนบสำหรับรายการนี้</span></div>`;return;}
     body.innerHTML='<div class="col-span-full text-center text-gray-400 py-6"><i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังโหลดรูปอย่างปลอดภัย...</div>';
     const urls=await Promise.all(ids.map(getBorrowImageDataUrl)),valid=urls.filter(Boolean);
-    if(!valid.length){body.innerHTML='<div class="col-span-full empty-state text-rose-500">ไม่สามารถอ่านรูปหลักฐานได้ กรุณาตรวจสิทธิ์ไฟล์หรือ Backend v4.1.1</div>';return;}
+    if(!valid.length){body.innerHTML='<div class="col-span-full empty-state text-rose-500">ไม่สามารถอ่านรูปหลักฐานได้ กรุณาตรวจสิทธิ์ไฟล์หรือ Supabase Storage</div>';return;}
     body.innerHTML=valid.map((url,i)=>`<div class="gallery-photo-item"><img src="${url}" data-secure-gallery-index="${i}" alt="รูปหลักฐานการยืม" /></div>`).join('');
     [...body.querySelectorAll('img[data-secure-gallery-index]')].forEach(img=>{img.onclick=()=>window.open(valid[Number(img.dataset.secureGalleryIndex)],'_blank');});
 }
@@ -1892,7 +1894,7 @@ async function checkSchemaStatus() {
         const res = await run('getSchemaStatus', {});
         if (res.success && res.ready) {
             box.className = 'text-[11px] text-emerald-700 mt-2';
-            box.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> โครงสร้างข้อมูลพร้อมใช้งาน v4.1.1';
+            box.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> โครงสร้างข้อมูลพร้อมใช้งาน v5.1.0';
         } else if (res.success) {
             const missing = [...(res.missingColumns || []), ...(res.missingSheets || [])].join(', ');
             box.className = 'text-[11px] text-amber-700 mt-2';
@@ -1909,7 +1911,7 @@ async function checkSchemaStatus() {
 
 async function upgradeSchemaV35() {
     const confirm = await Swal.fire({
-        title: 'อัปเกรดโครงสร้างเป็น v4.1.1?',
+        title: 'ตรวจสอบโครงสร้าง Supabase v5.1.0?',
         html: '<div class="text-xs text-left">ระบบจะ <b>เพิ่มเฉพาะ</b> คอลัมน์ คอลัมน์สำหรับ Role/Audit/VOID/Inactive และสร้างชีต AuditLog/BorrowExtensionLog เฉพาะเมื่อยังไม่มี<br><br><b>จะไม่ลบ ไม่ clear และไม่เขียนทับข้อมูลเดิม</b></div>',
         icon: 'info',
         showCancelButton: true,
@@ -1944,7 +1946,7 @@ function maintenanceDateText(value){
 
 async function loadMaintenanceStatus(){
     const box=document.getElementById('maintenance-status');if(!box)return;box.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังตรวจสอบสถานะ...';
-    const r=await run('getMaintenanceStatus',{});if(!r||!r.success){box.innerHTML=`<span class="text-rose-600">${escapeHtml((r&&r.error)||'โหลดสถานะไม่สำเร็จ')}${String(r&&r.error||'').includes('ไม่พบ Action')?'<br>กรุณา Deploy Backend v4.1.1 ก่อน':''}</span>`;return;}
+    const r=await run('getMaintenanceStatus',{});if(!r||!r.success){box.innerHTML=`<span class="text-rose-600">${escapeHtml((r&&r.error)||'โหลดสถานะไม่สำเร็จ')}${String(r&&r.error||'').includes('ไม่พบ Action')?'<br>กรุณาตรวจสอบ Supabase Backend v5.1.0':''}</span>`;return;}
     const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};set('maint-count-borrow',Number(r.borrowRows||0).toLocaleString('th-TH'));set('maint-count-audit',Number(r.auditRows||0).toLocaleString('th-TH'));set('maint-count-images',Number(r.imageFiles||0).toLocaleString('th-TH'));set('maint-count-backups',Number(r.dailyBackupCount||0)+Number(r.monthlyBackupCount||0));
     const en=document.getElementById('maint-backup-enabled');if(en)en.checked=!!r.backupEnabled;const hr=document.getElementById('maint-backup-hour');if(hr)hr.value=Number.isFinite(Number(r.backupHour))?Number(r.backupHour):2;
     const p=r.policy||{},latest=r.lastBackupUrl?`<a class="text-cyan-700 underline" href="${escapeHtml(r.lastBackupUrl)}" target="_blank" rel="noopener">${escapeHtml(r.lastBackupName||'เปิดชุดสำรองล่าสุด')}</a>`:escapeHtml(r.lastBackupName||'ยังไม่มี'),root=r.backupRootUrl?`<a class="text-cyan-700 underline" href="${escapeHtml(r.backupRootUrl)}" target="_blank" rel="noopener">เปิดโฟลเดอร์ Backup แยก</a>`:'ยังไม่ได้สร้าง';
@@ -2000,7 +2002,7 @@ async function loadAuditLogSection(){const box=document.getElementById('audit-lo
 async function loadLineConfigStatus() {
     const el=document.getElementById('line-config-status');
     const urlEl=document.getElementById('line-webhook-url');
-    if(urlEl)urlEl.value='https://tgeezbwbrovfyjbeykrj.supabase.co/functions/v1/line-webhook-gateway';
+    if(urlEl)urlEl.value='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/line-webhook-gateway';
     const hourEl=document.getElementById('line-daily-hour');
     if(hourEl && !hourEl.options.length){
         for(let h=0;h<24;h++){
