@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=5.1.0" />
+    <link rel="stylesheet" href="style.css?v=5.1.2" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -870,105 +870,51 @@
         </footer>
     </div>
 
-    <div id="print-section" class="hidden print:block print:w-full print:bg-white print:text-black">
-        <div style="max-width: 800px; margin: 0 auto; padding: 10px 20px; font-family: 'Sarabun', sans-serif; font-size: 15px; line-height: 1.5;">
 
-            <div class="flex justify-center items-center mb-6">
-                <img id="print-logo" src="assets/logo.png?v=4.2.4" alt="Logo" class="h-20 w-auto mr-20 object-contain" />
-                <div class="text-center">
-                    <h3 class="text-base font-bold mb-1 text-gray-700">แบบฟอร์มขอยืมอุปกรณ์เครื่องมือทางการแพทย์</h3>
-                    <h2 id="print-agency-name" class="text-xl font-bold leading-relaxed">
-                        กำลังโหลดข้อมูลหน่วยงาน...
-                    </h2>
+    <div id="print-section" class="hidden">
+        <div class="loan-print-sheet">
+            <div class="loan-print-header">
+                <div class="loan-print-logo-cell"><img id="print-logo" src="assets/logo.png?v=4.2.4" alt="ตราหน่วยงาน" class="loan-print-logo" /></div>
+                <div class="loan-print-title-cell">
+                    <div class="loan-print-form-title">แบบฟอร์มขอยืมอุปกรณ์เครื่องมือทางการแพทย์</div>
+                    <div id="print-agency-name" class="loan-print-agency">กำลังโหลดข้อมูลหน่วยงาน...</div>
                 </div>
+                <div class="loan-print-logo-spacer" aria-hidden="true"></div>
             </div>
-
-            <div class="text-right mb-4">
-                <p>วันที่ <span id="print-date" class="border-b border-dotted border-black inline-block w-40 text-center"></span></p>
+            <div class="loan-print-meta">
+                <div>เลขที่รายการ <span id="print-entry-id" class="loan-print-fill loan-print-fill-short"></span></div>
+                <div>วันที่ <span id="print-date" class="loan-print-fill loan-print-fill-date"></span></div>
             </div>
-
-            <div class="space-y-3">
-                <div class="flex items-baseline gap-2">
-                    <span class="whitespace-nowrap">ชื่อ - สกุลผู้ยืม :</span>
-                    <span id="print-borrower" class="flex-1 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
-                    <span class="whitespace-nowrap">เบอร์โทร :</span>
-                    <span id="print-phone" class="w-40 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
-                </div>
-
-                <div class="flex items-baseline gap-2">
-                    <span class="whitespace-nowrap">เพื่อให้ผู้ป่วยชื่อ :</span>
-                    <span id="print-patient" class="flex-1 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
-                    <span class="whitespace-nowrap">ความสัมพันธ์กับผู้ป่วย :</span>
-                    <span id="print-relation" class="w-40 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
-                </div>
-
-                <div class="flex items-baseline gap-2">
-                    <span class="whitespace-nowrap">ประเภทอุปกรณ์ที่ยืม :</span>
-                    <span id="print-equipment" class="flex-1 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
-                    <span class="whitespace-nowrap">โดยมัดจำค่าอุปกรณ์ :</span>
-                    <span id="print-deposit" class="w-32 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
-                    <span class="whitespace-nowrap">บาท</span>
-                </div>
-
-                <div class="flex items-baseline gap-2 pt-1">
-                    <span class="whitespace-nowrap">มีกำหนดระยะเวลา ณ วันที่</span>
-                    <span id="print-start-date" class="flex-1 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
-                    <span class="whitespace-nowrap">จนถึง วันที่</span>
-                    <span id="print-end-date" class="flex-1 border-b border-dotted border-black text-center text-blue-800 font-medium"></span>
-                    <span class="whitespace-nowrap">เป็นการสิ้นสุดคืนค่ามัดจำ</span>
-                </div>
-
-                <div class="mt-4 space-y-2 text-justify leading-relaxed">
-                    <p class="indent-12">
-                        ข้าพเจ้ารับทราบว่า หากได้ยืมอุปกรณ์เกิน 6 เดือน จะมิได้เงินคืนค่ามัดจำอุปกรณ์ และหากไม่มีการนำส่งคืนภายในระยะเวลาที่กำหนด ยินยอมให้เจ้าหน้าที่ โทรติดตามสถานะการใช้งานได้ทุกๆ 3 เดือน จนกว่าจะมีการส่งคืนโดยเสร็จสมบูรณ์
-                    </p>
-                    <p class="indent-12">
-                        และข้าพเจ้าขอรับรองว่า จะดูแลรักษาอุปกรณ์ที่ยืมเป็นอย่างดี หากกรณีมีความเสียหายใดๆ หรือมีการสูญหายเกิดขึ้น ข้าพเจ้าจะขอรับผิดชอบทั้งหมดทุกกรณีโดยไม่มีเงื่อนไข
-                    </p>
-                    <p class="indent-12">
-                        กรณียืมถังออกซิเจนชนิดเติม เมื่อนำมาส่งคืน ข้าพเจ้าจะเติมออกซิเจนให้เต็ม โดยต้องได้รับการผนึกซิลจากร้านค้า เพื่อเป็นการยืนยันว่าออกซิเจนในถัง ได้รับการเติมจนเต็มถังเรียบร้อยแล้ว ซึ่งจะเป็นประโยชน์แก่ผู้รับบริการคนถัดไป ในต่อไปหลังจากนี้
-                    </p>
-                </div>
+            <div class="loan-print-section-title">ข้อมูลผู้ยืมและผู้ป่วย</div>
+            <div class="loan-print-grid loan-print-grid-2">
+                <div class="loan-print-field loan-print-span-2"><span class="loan-print-label">ชื่อ - สกุลผู้ยืม</span><span id="print-borrower" class="loan-print-value"></span></div>
+                <div class="loan-print-field"><span class="loan-print-label">เลขประจำตัวประชาชน</span><span id="print-citizen" class="loan-print-value"></span></div>
+                <div class="loan-print-field"><span class="loan-print-label">เบอร์โทรศัพท์</span><span id="print-phone" class="loan-print-value"></span></div>
+                <div class="loan-print-field"><span class="loan-print-label">ผู้ป่วย</span><span id="print-patient" class="loan-print-value"></span></div>
+                <div class="loan-print-field"><span class="loan-print-label">ความสัมพันธ์กับผู้ป่วย</span><span id="print-relation" class="loan-print-value"></span></div>
+                <div class="loan-print-field"><span class="loan-print-label">ชุมชน / หมู่บ้าน</span><span id="print-community" class="loan-print-value"></span></div>
+                <div class="loan-print-field"><span class="loan-print-label">ที่อยู่</span><span id="print-address" class="loan-print-value"></span></div>
             </div>
-
-            <div class="flex justify-between mt-8 text-center">
-                <div class="w-1/2">
-                    <p>ลงชื่อ ................................................. ผู้ยืม</p>
-                    <p class="mt-2">( <span id="print-sign-borrower" class="inline-block w-48 border-b border-dotted border-black text-blue-800"></span> )</p>
-                </div>
-                <div class="w-1/2">
-                    <p>ลงชื่อ ............................................ เจ้าหน้าที่ผู้ให้ยืม</p>
-                    <p class="mt-2">( <span id="print-sign-staff" class="inline-block w-48 border-b border-dotted border-black text-blue-800"></span> )</p>
-                </div>
+            <div class="loan-print-section-title">ข้อมูลการยืมอุปกรณ์</div>
+            <div class="loan-print-grid loan-print-grid-2">
+                <div class="loan-print-field loan-print-span-2"><span class="loan-print-label">อุปกรณ์ที่ยืม</span><span id="print-equipment" class="loan-print-value"></span></div>
+                <div class="loan-print-field"><span class="loan-print-label">วันที่เริ่มยืม</span><span id="print-start-date" class="loan-print-value"></span></div>
+                <div class="loan-print-field"><span class="loan-print-label">กำหนดคืน</span><span id="print-end-date" class="loan-print-value"></span></div>
+                <div class="loan-print-field"><span class="loan-print-label">เงินมัดจำ</span><span class="loan-print-value"><span id="print-deposit"></span> บาท</span></div>
+                <div class="loan-print-field"><span class="loan-print-label">หมายเหตุ</span><span id="print-note" class="loan-print-value"></span></div>
             </div>
-
-            <div class="text-center mt-6">
-                <p>ลงชื่อ ....................................................... พยาน</p>
-                <p class="mt-2">( ...................................................... )</p>
+            <div class="loan-print-terms">
+                <p>ข้าพเจ้ารับทราบว่า หากได้ยืมอุปกรณ์เกิน 6 เดือน จะมิได้เงินคืนค่ามัดจำอุปกรณ์ และหากไม่มีการนำส่งคืนภายในระยะเวลาที่กำหนด ยินยอมให้เจ้าหน้าที่ โทรติดตามสถานะการใช้งานได้ทุกๆ 3 เดือน จนกว่าจะมีการส่งคืนโดยเสร็จสมบูรณ์</p>
+                <p>และข้าพเจ้าขอรับรองว่า จะดูแลรักษาอุปกรณ์ที่ยืมเป็นอย่างดี หากกรณีมีความเสียหายใดๆ หรือมีการสูญหายเกิดขึ้น ข้าพเจ้าจะขอรับผิดชอบทั้งหมดทุกกรณีโดยไม่มีเงื่อนไข</p>
+                <p>กรณียืมถังออกซิเจนชนิดเติม เมื่อนำมาส่งคืน ข้าพเจ้าจะเติมออกซิเจนให้เต็ม โดยต้องได้รับการผนึกซิลจากร้านค้า เพื่อเป็นการยืนยันว่าออกซิเจนในถัง ได้รับการเติมจนเต็มถังเรียบร้อยแล้ว ซึ่งจะเป็นประโยชน์แก่ผู้รับบริการคนถัดไป ในต่อไปหลังจากนี้</p>
             </div>
-
-            <hr class="my-6 border-t-2 border-dashed border-gray-400">
-
-            <h4 class="font-bold mb-3">ส่วนของการส่งคืนอุปกรณ์</h4>
-            <div class="flex justify-between text-sm">
-                <div class="w-1/2 text-left">
-                    <p><i class="fa-regular fa-square mr-2"></i> ส่งคืนอุปกรณ์ครบถ้วน</p>
-                    <p class="mt-2"><i class="fa-regular fa-square mr-2"></i> อุปกรณ์ชำรุด เนื่องจาก ...........................................</p>
-                    <div class="text-center mt-6">
-                        <p>ลงชื่อ ................................................... ผู้ส่งคืน</p>
-                        <p class="mt-2">( ...................................................... )</p>
-                        <p class="mt-2">วันที่คืน ....................................................</p>
-                    </div>
-                </div>
-                <div class="w-1/2 text-center mt-10">
-                    <p>ลงชื่อ ................................................. เจ้าหน้าที่ผู้รับคืน</p>
-                    <p class="mt-2">( ......................................................... )</p>
-                    <p class="mt-2">วันที่รับคืน ....................................................</p>
-                </div>
+            <div class="loan-print-signatures">
+                <div><div>ลงชื่อ ......................................................... ผู้ยืม</div><div class="loan-print-sign-name">( <span id="print-sign-borrower"></span> )</div></div>
+                <div><div>ลงชื่อ ......................................................... เจ้าหน้าที่ผู้ให้ยืม</div><div class="loan-print-sign-name">( <span id="print-sign-staff"></span> )</div></div>
             </div>
-
         </div>
     </div>
+
 
     <div id="print-tracking-section" class="hidden font-sarabun text-black bg-white p-4 text-xs">
         <h2 class="text-base font-bold text-center mb-6 text-gray-900">ตารางรายงานสถานะและบัญชีค้างส่งคืนเครื่องมือแพทย์ประจำศูนย์</h2>
@@ -1096,6 +1042,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=5.1.1"></script>
+    <script src="script.js?v=5.1.2"></script>
 </body>
 </html>

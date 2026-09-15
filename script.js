@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.0 Supabase Full Parity)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.2 Supabase Full Parity)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -764,98 +764,92 @@ function changeAdminPage(target) {
 
 // ✅ แก้ไขปัญหาปริ้นท์หลุดฟอร์แมต: ล็อกระดับ Body Class ปิดหน้าเว็บอื่นเพื่อพิมพ์ใบยืมแบบโบราณดั้งเดิมตามสัญญาจริง
 async function printLoanReceipt(entryId) {
-    // 🔍 ค้นหาเรคคอร์ดแถวข้อมูลสัญญาใน State ด้วย EntryID หรือดัชนีแรก
-    const row = state.data.find(r => (r.EntryID || r[0]) === entryId);
+    const row = state.data.find(r => String(r.EntryID || r[0] || '') === String(entryId));
     if (!row) {
         Swal.fire('ข้อผิดพลาด', 'ไม่พบข้อมูลแถวสัญญานี้ในคลังระบบ', 'error');
         return;
     }
 
-    // 🗓️ ถอดค่าและจัดรูปแบบวันที่เริ่มต้นสัญญา และวันครบกำหนดส่งคืนรับประกันมัดจำ (บวก 6 เดือน)
     const rawDate = row.BorrowDate || row[9];
-    const bDate = rawDate ? new Date(rawDate) : new Date();
+    const parsedBorrowDate = rawDate ? new Date(rawDate) : new Date();
+    const bDate = Number.isNaN(parsedBorrowDate.getTime()) ? new Date() : parsedBorrowDate;
     const dateFormatted = bDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-
-    const dDate = getBorrowDueDate(row) || addMonthsClient(bDate, 6) || bDate;
+    const dueCandidate = getBorrowDueDate(row) || addMonthsClient(bDate, 6) || bDate;
+    const dDate = dueCandidate instanceof Date && !Number.isNaN(dueCandidate.getTime()) ? dueCandidate : bDate;
     const endDateFormatted = dDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // 📦 ค้นหารหัสครุภัณฑ์และแมปข้อมูลชื่อรุ่นกายอุปกรณ์จากสต็อกพัสดุ
-    const eqId = row.EquipmentID || row[5];
-    const matchedEq = state.equipments.find(e => String(e.EquipmentID || e[0]).trim() === String(eqId).trim());
-
-    // 📡 ดึงข้อมูลสัญญลักษณ์ Logo และชื่อต้นสังกัดจากแผ่นข้อมูลพับลิกส์ (Publics Sheet)
+    const eqId = row.EquipmentID || row[5] || '-';
+    const matchedEq = state.equipments.find(e => String(e.EquipmentID || e[0] || '').trim() === String(eqId).trim());
     const agencyText = state.publics.find(item => item['ประเภท'] === 'Agency' || item[0] === 'Agency');
     const logoText = state.publics.find(item => item['ประเภท'] === 'Logo' || item[0] === 'Logo');
+    const setText = (id, value, fallback='-') => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(value ?? '').trim() || fallback;
+    };
 
-    // 🖼️ ดึงรูปตราสัญลักษณ์ของหน่วยงานมาผูกเข้ากับ Element โครงสร้างรูปภาพตัวใหม่
-    if (logoText && document.getElementById('print-logo')) {
-        document.getElementById('print-logo').src = logoText['ข้อมูล 1'] || logoText[1] || '';
-    }
+    const borrowerName = row.BorrowerName || row.PatientName || row[1] || row[13] || '-';
+    const patientName = row.PatientName || row[13] || borrowerName || '-';
+    const serial = matchedEq ? (matchedEq.SerialNumber || matchedEq[2] || row.SerialNumber || row[6] || '-') : (row.SerialNumber || row[6] || '-');
+    const eqName = matchedEq ? (matchedEq.EquipmentName || matchedEq[1] || '-') : '-';
+    const equipmentText = `${eqName} | รหัส ${eqId}${serial && serial !== '-' ? ` | S/N ${serial}` : ''}`;
 
-    // 🏢 จัดสายอักษรชื่อหน่วยงานเทศบาล/ศูนย์แพทย์ เว้นบรรทัดแบบยืดหยุ่นตามเวอร์ชัน 2.1 ดั้งเดิมของคุณ
-    if (agencyText && document.getElementById('print-agency-name')) {
-        const title1 = agencyText['ข้อมูล 1'] || agencyText[1] || '';
-        const title2 = agencyText['ข้อมูล 2'] || agencyText[2] || '';
-        document.getElementById('print-agency-name').innerHTML = title2 ? `${escapeHtml(title1)}<br>${escapeHtml(title2)}` : escapeHtml(title1);
-    }
+    setText('print-entry-id', row.EntryID || row[0] || entryId);
+    setText('print-date', dateFormatted);
+    setText('print-borrower', borrowerName);
+    setText('print-citizen', row.CitizenID || row[2] || '-');
+    setText('print-phone', row.Phone || row[12] || '-');
+    setText('print-patient', patientName);
+    setText('print-relation', row.Relationship || row[14] || 'ตนเอง');
+    setText('print-community', row.Community || row[4] || '-');
+    setText('print-address', row.Address || row[3] || '-');
+    setText('print-equipment', equipmentText);
+    setText('print-start-date', dateFormatted);
+    setText('print-end-date', endDateFormatted);
+    setText('print-deposit', row.Deposit || row[15] || '0', '0');
+    setText('print-note', row.Note || row[11] || '-');
+    setText('print-sign-borrower', borrowerName);
+    setText('print-sign-staff', state.adminName || 'เจ้าหน้าที่ผู้มอบ');
 
-    // ✍️ รันคำสั่งกระจายข้อมูลลงสู่แผ่น ID ในชุดแบบฟอร์มตัวใหม่ที่กำหนดสไตล์สีน้ำเงินเข้มและตัวหนา
-    if (document.getElementById('print-borrower')) {
-        document.getElementById('print-borrower').innerText = row.BorrowerName || row.PatientName || row[1] || row[13] || '-';
-    }
-    if (document.getElementById('print-sign-borrower')) {
-        document.getElementById('print-sign-borrower').innerText = row.BorrowerName || row.PatientName || row[1] || row[13] || '-';
-    }
-    if (document.getElementById('print-date')) {
-        document.getElementById('print-date').innerText = dateFormatted;
-    }
-    if (document.getElementById('print-equipment')) {
-        document.getElementById('print-equipment').innerText = matchedEq ? `${matchedEq[1] || matchedEq.EquipmentName} รหัส: ${matchedEq[0] || matchedEq.EquipmentID} (${matchedEq[2] || matchedEq.SerialNumber})` : eqId;
-    }
-
-    if (document.getElementById('print-start-date')) {
-        document.getElementById('print-start-date').innerText = dateFormatted;
-    }
-    if (document.getElementById('print-end-date')) {
-        document.getElementById('print-end-date').innerText = endDateFormatted;
-    }
-    if (document.getElementById('print-phone')) {
-        document.getElementById('print-phone').innerText = row.Phone || row[12] || '-';
-    }
-    if (document.getElementById('print-patient')) {
-        document.getElementById('print-patient').innerText = row.PatientName || row[13] || '-';
-    }
-    if (document.getElementById('print-relation')) {
-        document.getElementById('print-relation').innerText = row.Relationship || row[14] || 'ตนเอง';
-    }
-    if (document.getElementById('print-deposit')) {
-        document.getElementById('print-deposit').innerText = row.Deposit || row[15] || '0';
+    const agencyEl = document.getElementById('print-agency-name');
+    if (agencyEl) {
+        const title1 = agencyText ? (agencyText['ข้อมูล 1'] || agencyText[1] || '') : '';
+        const title2 = agencyText ? (agencyText['ข้อมูล 2'] || agencyText[2] || '') : '';
+        agencyEl.innerHTML = title2 ? `${escapeHtml(title1)}<br><span class="loan-print-agency-sub">${escapeHtml(title2)}</span>` : escapeHtml(title1 || 'ศูนย์ยืมคืนอุปกรณ์การแพทย์');
     }
 
-    // 🔒 ระบบความปลอดภัยอัตโนมัติ: ดึงชื่อบัญชีแอดมินผู้ที่เข้าสู่ระบบพิมพ์ในขณะนั้นหยอดลงช่องเจ้าหน้าที่ผู้ให้ยืมทันที
-    if (document.getElementById('print-sign-staff')) {
-        document.getElementById('print-sign-staff').innerText = state.adminName || 'เจ้าหน้าที่ผู้มอบ';
-    }
-
-    // 🖼️ รอให้โลโก้โหลดเสร็จก่อนเปิด Print Preview ป้องกันภาพหาย/ภาพแตก
     const printLogoEl = document.getElementById('print-logo');
-    if (printLogoEl && !printLogoEl.complete) {
-        await new Promise(resolve => {
-            let finished = false;
-            const done = () => { if (!finished) { finished = true; resolve(); } };
-            printLogoEl.addEventListener('load', done, { once: true });
-            printLogoEl.addEventListener('error', done, { once: true });
-            setTimeout(done, 2000);
-        });
-    }
-    if (printLogoEl && typeof printLogoEl.decode === 'function') {
-        try { await printLogoEl.decode(); } catch (_) {}
+    if (printLogoEl) {
+        const configuredLogo = (logoText && (logoText['ข้อมูล 1'] || logoText[1])) || document.getElementById('nav-logo')?.src || DEFAULT_LOGO;
+        const waitForLogo = async () => {
+            if (!printLogoEl.complete) {
+                await new Promise(resolve => {
+                    let finished = false;
+                    const done = () => { if (!finished) { finished = true; resolve(); } };
+                    printLogoEl.addEventListener('load', done, { once: true });
+                    printLogoEl.addEventListener('error', done, { once: true });
+                    setTimeout(done, 2500);
+                });
+            }
+            if (typeof printLogoEl.decode === 'function' && printLogoEl.naturalWidth > 0) {
+                try { await printLogoEl.decode(); } catch (_) {}
+            }
+        };
+        printLogoEl.src = configuredLogo || DEFAULT_LOGO;
+        await waitForLogo();
+        if (!printLogoEl.naturalWidth && configuredLogo !== DEFAULT_LOGO) {
+            printLogoEl.src = DEFAULT_LOGO;
+            await waitForLogo();
+        }
     }
 
-    // 🖨️ บังคับเปลี่ยนสถานะโครงสร้างสไตล์ชีตคุมเลย์เอาต์เฉพาะเครื่องปริ้นท์ตามระเบียบเวอร์ชัน 2.1 ดั้งเดิมของคุณ
+    document.body.classList.remove('print-mode-tracking');
     document.body.classList.add('print-mode-receipt');
-    window.print();
-    document.body.classList.remove('print-mode-receipt');
+    try {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        window.print();
+    } finally {
+        document.body.classList.remove('print-mode-receipt');
+    }
 }
 
 // 🗃️ แคชรายการติดตามที่ผ่านการค้นหา/กรองล่าสุด ใช้ทั้งแสดงผลและพิมพ์รายงาน

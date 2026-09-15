@@ -226,12 +226,46 @@ button:focus-visible, .menu-item:focus-visible{
 .animate-scale{ animation:scaleIn .18s ease-out; }
 .badge-pill{ display:inline-flex; align-items:center; gap:4px; }
 
+@page{
+  size:A4 portrait;
+  margin:10mm 11mm;
+}
 @media print{
-  body *{ visibility:hidden; }
-  #print-section, #print-section *{ visibility:visible; }
-  #print-tracking-section, #print-tracking-section *{ visibility:visible; }
+  html,body{ margin:0 !important; padding:0 !important; background:#fff !important; color:#000 !important; }
+  body *{ visibility:hidden !important; }
+  #print-section,#print-tracking-section{ display:none !important; visibility:hidden !important; }
+  body.print-mode-receipt #print-section,
+  body.print-mode-receipt #print-section *{ visibility:visible !important; }
   body.print-mode-receipt #print-section{ display:block !important; position:absolute; top:0; left:0; width:100%; }
+  body.print-mode-receipt #print-tracking-section{ display:none !important; }
+  body.print-mode-tracking #print-tracking-section,
+  body.print-mode-tracking #print-tracking-section *{ visibility:visible !important; }
   body.print-mode-tracking #print-tracking-section{ display:block !important; position:absolute; top:0; left:0; width:100%; }
+  body.print-mode-tracking #print-section{ display:none !important; }
+  .loan-print-sheet{ width:100%; max-width:188mm; margin:0 auto; font-family:'Sarabun',sans-serif; font-size:11.5pt; line-height:1.42; color:#000; }
+  .loan-print-header{ display:grid; grid-template-columns:27mm 1fr 27mm; align-items:center; column-gap:4mm; padding-bottom:3mm; border-bottom:1.2px solid #000; }
+  .loan-print-logo-cell,.loan-print-logo-spacer{ width:27mm; min-height:24mm; display:flex; align-items:center; justify-content:center; }
+  .loan-print-logo{ width:22mm; height:22mm; object-fit:contain; display:block; }
+  .loan-print-title-cell{ text-align:center; }
+  .loan-print-form-title{ font-size:14pt; font-weight:700; margin-bottom:1mm; }
+  .loan-print-agency{ font-size:13pt; font-weight:700; line-height:1.35; }
+  .loan-print-agency-sub{ font-size:11.5pt; font-weight:600; }
+  .loan-print-meta{ display:flex; justify-content:space-between; align-items:flex-end; gap:8mm; margin:3mm 0; font-size:10.5pt; }
+  .loan-print-fill{ display:inline-block; min-width:35mm; text-align:center; border-bottom:1px dotted #000; font-weight:600; }
+  .loan-print-fill-short{ min-width:32mm; }
+  .loan-print-fill-date{ min-width:42mm; }
+  .loan-print-section-title{ font-size:11pt; font-weight:700; padding:1.2mm 2mm; border:1px solid #000; border-bottom:0; margin-top:2.5mm; }
+  .loan-print-grid{ display:grid; border-top:1px solid #000; border-left:1px solid #000; }
+  .loan-print-grid-2{ grid-template-columns:1fr 1fr; }
+  .loan-print-field{ display:grid; grid-template-columns:37mm 1fr; min-height:9mm; border-right:1px solid #000; border-bottom:1px solid #000; align-items:stretch; break-inside:avoid; }
+  .loan-print-span-2{ grid-column:1 / -1; }
+  .loan-print-label{ padding:1.7mm 2mm; font-weight:600; border-right:1px solid #000; display:flex; align-items:center; }
+  .loan-print-value{ padding:1.7mm 2mm; min-width:0; overflow-wrap:anywhere; display:flex; align-items:center; font-weight:500; }
+  .loan-print-terms{ margin-top:3mm; font-size:10.3pt; line-height:1.42; text-align:justify; }
+  .loan-print-terms p{ margin:0 0 1.5mm; text-indent:9mm; }
+  .loan-print-signatures{ display:grid; grid-template-columns:1fr 1fr; gap:10mm; margin-top:8mm; text-align:center; font-size:10.5pt; break-inside:avoid; }
+  .loan-print-sign-name{ margin-top:2.5mm; }
+  .loan-print-sign-name span{ display:inline-block; min-width:48mm; border-bottom:1px dotted #000; font-weight:600; }
 }
 .fade-in{ animation:fadeIn .25s ease-out; }
 @keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
