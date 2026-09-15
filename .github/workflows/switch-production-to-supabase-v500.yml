@@ -1,0 +1,92 @@
+name: Switch production to Supabase v5.0.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/switch-production-to-supabase-v500.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch frontend for Supabase backend
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          s = Path('script.js').read_text(encoding='utf-8')
+          i = Path('index.html').read_text(encoding='utf-8')
+
+          old_api = 'const API_URL = "https://script.google.com/macros/s/AKfycbwgfgEf9T8NbQexeUxPHelNZzdY6XTrdaEfBd6x4UXyPW44reZTh9dUB1g0kFu0_aP0EQ/exec";'
+          new_api = 'const API_URL = "https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api";'
+          assert old_api in s, 'old API URL not found'
+          s = s.replace(old_api, new_api, 1)
+          s = s.replace('Frontend Controller API (v4.2.8 Legacy Image Compatibility)', 'Frontend Controller API (v5.0.0 Supabase Core)', 1)
+
+          token_line = "    token: 'medDevice.adminToken',\n"
+          if "refreshToken: 'medDevice.refreshToken'" not in s:
+              assert token_line in s
+              s = s.replace(token_line, token_line + "    refreshToken: 'medDevice.refreshToken',\n", 1)
+
+          old_clear = "[STORAGE_KEYS.token, STORAGE_KEYS.adminId, STORAGE_KEYS.adminName, 'adminToken', 'adminId', 'adminName']"
+          new_clear = "[STORAGE_KEYS.token, STORAGE_KEYS.refreshToken, STORAGE_KEYS.adminId, STORAGE_KEYS.adminName, 'adminToken', 'adminId', 'adminName']"
+          assert old_clear in s
+          s = s.replace(old_clear, new_clear, 1)
+
+          marker = "        if (result && result.needLogin) {\n"
+          refresh_block = """        if (result && result.needLogin && action !== 'refreshSession' && !payload.__refreshAttempted) {\n            const refreshToken = getSessionValue('refreshToken');\n            if (refreshToken) {\n                payload.__refreshAttempted = true;\n                const refreshed = await run('refreshSession', { refreshToken, __refreshAttempted: true });\n                if (refreshed && refreshed.success && refreshed.token) {\n                    setSessionValue('token', refreshed.token);\n                    setSessionValue('refreshToken', refreshed.refreshToken || refreshToken);\n                    if (refreshed.adminId) setSessionValue('adminId', refreshed.adminId);\n                    if (refreshed.adminName) setSessionValue('adminName', refreshed.adminName);\n                    if (refreshed.role) setSessionValue('role', refreshed.role);\n                    delete payload.token;\n                    return run(action, payload);\n                }\n            }\n        }\n"""
+          assert marker in s
+          s = s.replace(marker, refresh_block + marker, 1)
+
+          login_token = "        setSessionValue('token', res.token);\n"
+          assert login_token in s
+          s = s.replace(login_token, login_token + "        if (res.refreshToken) setSessionValue('refreshToken', res.refreshToken);\n", 1)
+
+          old_edit_citizen = "    document.getElementById('borrow-citizen').value = record.CitizenID || record[2] || '';"
+          new_edit_citizen = "    { const cv=String(record.CitizenID || record[2] || ''); document.getElementById('borrow-citizen').value = /^\\d{13}$/.test(cv) ? cv : ''; }"
+          assert old_edit_citizen in s
+          s = s.replace(old_edit_citizen, new_edit_citizen, 1)
+
+          submit_marker = "    const isEditing = !!editingBorrowId;\n"
+          citizen_guard = """    const citizenDigits = String(document.getElementById('borrow-citizen')?.value || '').replace(/\\D/g, '');\n    if (!isEditing && citizenDigits.length !== 13) {\n        Swal.fire('กรุณาตรวจเลขประชาชน', 'รายการใหม่ต้องกรอกเลขประจำตัวประชาชน 13 หลัก ระบบจะส่งไปประมวลผลแต่เก็บในฐานใหม่เฉพาะเลขท้าย 4 หลัก', 'warning');\n        return;\n    }\n    if (isEditing && citizenDigits && citizenDigits.length !== 13) {\n        Swal.fire('กรุณาตรวจเลขประชาชน', 'หากต้องการแก้เลขประชาชน กรุณากรอกให้ครบ 13 หลัก หรือเว้นว่างเพื่อคงข้อมูลเดิมแบบปกปิด', 'warning');\n        return;\n    }\n"""
+          assert submit_marker in s
+          s = s.replace(submit_marker, submit_marker + citizen_guard, 1)
+
+          s = s.replace('Backend Apps Script ไม่พร้อมใช้งาน', 'Backend Supabase ไม่พร้อมใช้งาน')
+          s = s.replace('Backend Apps Script ตอบกลับไม่ใช่ JSON กรุณาตรวจสอบ Web App deployment และสิทธิ์การเข้าถึง', 'Backend Supabase ตอบกลับไม่ใช่ JSON กรุณาตรวจสอบ Edge Function และการเชื่อมต่อ')
+          s = s.replace('Backend Apps Script ส่งข้อมูลที่ไม่ใช่ JSON กรุณาตรวจสอบ deployment', 'Backend Supabase ส่งข้อมูลที่ไม่ใช่ JSON กรุณาตรวจสอบ Edge Function')
+          s = s.replace('ไม่พบ Apps Script Web App deployment ที่ URL ปัจจุบัน กรุณา Deploy Web app ใหม่/อัปเดต deployment เดิม แล้วใช้ URL ที่ลงท้ายด้วย /exec', 'ไม่พบ Supabase Edge Function ที่ URL ปัจจุบัน กรุณาตรวจสอบ deployment ของ med-device-api')
+          s = s.replace('API_URL ของระบบ', 'API_URL ของระบบ Supabase')
+
+          i = i.replace('style.css?v=4.2.8', 'style.css?v=5.0.0')
+          i = i.replace('script.js?v=4.2.8.2', 'script.js?v=5.0.0')
+          i = i.replace('ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v4.2.8', 'ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.0.0')
+          i = i.replace('Admin ID / บัญชีผู้ใช้งาน', 'Admin ID หรือ Email / บัญชีผู้ใช้งาน')
+          i = i.replace('id="login-uid" class=', 'id="login-uid" placeholder="admin หรือ email@example.com" class=', 1)
+          i = i.replace('ชื่อผู้ใช้งาน (Username)', 'Email ผู้ใช้งาน (Supabase Auth)')
+          i = i.replace('type="text" id="new-admin-id" placeholder="ตัวอย่าง: staff02"', 'type="email" id="new-admin-id" placeholder="ตัวอย่าง: staff02@example.com"')
+
+          old_citizen_input = 'id="borrow-citizen" maxlength="13" inputmode="numeric" pattern="[0-9]{13}" autocomplete="off" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required'
+          new_citizen_input = 'id="borrow-citizen" maxlength="13" inputmode="numeric" pattern="[0-9]{13}" autocomplete="off" placeholder="รายการใหม่กรอก 13 หลัก; แก้ไขเดิมเว้นว่างได้" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none"'
+          assert old_citizen_input in i
+          i = i.replace(old_citizen_input, new_citizen_input, 1)
+
+          Path('script.js').write_text(s, encoding='utf-8')
+          Path('index.html').write_text(i, encoding='utf-8')
+          PY
+
+          git config user.name 'kelang-health'
+          git config user.email 'mithong3@gmail.com'
+          git add script.js index.html
+          git diff --cached --check
+          git commit -m 'v5.0.0: switch production core backend to Supabase'
+          git push origin main
