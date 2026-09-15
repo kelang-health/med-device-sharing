@@ -1,0 +1,43 @@
+name: Verify Production v5.1.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-production-v510.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify live site and Supabase endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE='https://kelang-health.github.io/med-device-sharing/'
+          API='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api-v51'
+          ANALYTICS='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-analytics-v51'
+          WEBHOOK='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/line-webhook-gateway'
+
+          curl -fsSL --retry 5 --retry-delay 5 --max-time 30 "$SITE" -o live.html
+          grep -F 'script.js?v=5.1.0' live.html
+          grep -F "$WEBHOOK" live.html
+          curl -fsSL --retry 5 --retry-delay 5 --max-time 30 "${SITE}script.js?v=5.1.0" -o live.js
+          grep -F "$API" live.js
+          grep -F "$ANALYTICS" live.js
+
+          curl -fsSL --max-time 30 -H 'Content-Type: text/plain;charset=utf-8' --data '{"action":"health","payload":{}}' "$API" -o health.json
+          curl -fsSL --max-time 30 -H 'Content-Type: text/plain;charset=utf-8' --data '{"action":"getPublicDashboard","payload":{}}' "$API" -o dash.json
+          curl -fsSL --max-time 30 "$WEBHOOK" -o webhook.json
+          code=$(curl -sS --max-time 30 -o analytics.json -w '%{http_code}' -H 'Content-Type: application/json' --data '{"action":"getManagementAnalytics","payload":{}}' "$ANALYTICS")
+          python - <<'PY'
+          import json, os
+          h=json.load(open('health.json')); assert h.get('success') and h.get('version')=='5.1.0', h
+          d=json.load(open('dash.json')); x=d.get('data') or {}; assert d.get('success') and (x.get('total'),x.get('available'),x.get('borrowed'))==(117,61,56), d
+          w=json.load(open('webhook.json')); assert w.get('success') and w.get('version')=='5.1.0', w
+          a=json.load(open('analytics.json')); assert a.get('success') is False, a
+          print('production v5.1 verification passed')
+          PY
