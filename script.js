@@ -2146,14 +2146,38 @@ async function loadAdminUsersSection() {
 function renderAdminUsersTable(users) {
     const list=document.getElementById('admin-users-list'); if(!list)return;
     if(!users.length){list.innerHTML='<div class="empty-state py-6">ยังไม่มีบัญชีผู้ใช้งาน</div>';return;}
-    const me=getSessionValue('adminId')||'';
+    const me=String(getSessionValue('adminId')||'').toLowerCase();
     list.innerHTML=users.map(u=>{
-      const isMe=String(u.adminId).toLowerCase()===String(me).toLowerCase();
-      const status=u.active!==false?'เปิดใช้งาน':'ปิดใช้งาน';
-      return `<div class="flex items-center justify-between bg-gray-50 border rounded-xl px-3 py-2.5"><div><p class="font-bold">${escapeHtml(u.adminName)} <span class="text-[10px] text-indigo-600">${escapeHtml(u.role||'STAFF')}</span></p><p class="text-[11px] text-gray-400">${escapeHtml(u.adminId)} • ${status}</p></div><button ${isMe?'disabled':''} onclick="setAdminUserActivePrompt('${escapeJsSingleQuoted(u.adminId)}',${u.active===false?'true':'false'})" class="px-3 py-1.5 rounded-lg text-xs font-bold ${u.active===false?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}">${u.active===false?'เปิดใช้':'ปิดใช้'}</button></div>`;
+      const adminId=String(u.adminId||'');
+      const isMe=adminId.toLowerCase()===me;
+      const active=u.active!==false;
+      const role=String(u.role||'STAFF').toUpperCase()==='ADMIN'?'ADMIN':'STAFF';
+      const roleControl=isMe
+        ? `<span class="inline-flex px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[10px]">${role}</span>`
+        : `<select onchange="setAdminUserRolePrompt('${escapeJsSingleQuoted(adminId)}',this.value)" class="border border-gray-200 bg-white px-2 py-1.5 rounded-lg text-[10px] font-bold"><option value="STAFF" ${role==='STAFF'?'selected':''}>STAFF</option><option value="ADMIN" ${role==='ADMIN'?'selected':''}>ADMIN</option></select>`;
+      const action=isMe
+        ? `<button onclick="changeMyPasswordPrompt()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700"><i class="fa-solid fa-key mr-1"></i>เปลี่ยนรหัสผ่าน</button>`
+        : `<button onclick="setAdminUserActivePrompt('${escapeJsSingleQuoted(adminId)}',${active?'false':'true'})" class="px-3 py-1.5 rounded-lg text-xs font-bold ${active?'bg-rose-50 text-rose-700':'bg-emerald-50 text-emerald-700'}">${active?'ปิดใช้':'เปิดใช้'}</button>`;
+      return `<div class="bg-gray-50 border rounded-xl px-3 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"><div><p class="font-bold">${escapeHtml(u.adminName||adminId)} ${isMe?'<span class="text-[9px] text-blue-600">(บัญชีของฉัน)</span>':''}</p><p class="text-[11px] text-gray-400">${escapeHtml(adminId)} • ${active?'เปิดใช้งาน':'ปิดใช้งาน'}</p></div><div class="flex items-center gap-2">${roleControl}${action}</div></div>`;
     }).join('');
 }
 function setAdminUserActivePrompt(adminId,active){Swal.fire({title:active?'เปิดใช้งานบัญชี?':'ปิดใช้งานบัญชี?',icon:'question',showCancelButton:true,confirmButtonText:'ยืนยัน'}).then(async r=>{if(!r.isConfirmed)return;const res=await run('setAdminUserActive',{adminId,active});if(res.success){Swal.fire('สำเร็จ','','success');loadAdminUsersSection();}else Swal.fire('ไม่สำเร็จ',res.error||'','error');});}
+async function setAdminUserRolePrompt(adminId,role){
+    const ask=await Swal.fire({title:'เปลี่ยนสิทธิ์ผู้ใช้งาน?',text:`เปลี่ยน ${adminId} เป็น ${role}`,icon:'question',showCancelButton:true,confirmButtonText:'ยืนยัน',cancelButtonText:'ยกเลิก'});
+    if(!ask.isConfirmed){loadAdminUsersSection();return;}
+    const res=await run('setAdminUserRole',{adminId,role});
+    if(res.success){await Swal.fire('เปลี่ยนสิทธิ์แล้ว',`${adminId} → ${role}`,'success');loadAdminUsersSection();}
+    else{await Swal.fire('ไม่สำเร็จ',res.error||'ไม่สามารถเปลี่ยนสิทธิ์ได้','error');loadAdminUsersSection();}
+}
+async function changeMyPasswordPrompt(){
+    const first=await Swal.fire({title:'เปลี่ยนรหัสผ่านของฉัน',input:'password',inputLabel:'รหัสผ่านใหม่',inputPlaceholder:'อย่างน้อย 10 ตัวอักษร',inputAttributes:{autocomplete:'new-password',minlength:'10'},showCancelButton:true,confirmButtonText:'ต่อไป',cancelButtonText:'ยกเลิก',inputValidator:v=>!v||v.length<10?'กรุณากรอกอย่างน้อย 10 ตัวอักษร':undefined});
+    if(!first.isConfirmed)return;
+    const second=await Swal.fire({title:'ยืนยันรหัสผ่านใหม่',input:'password',inputPlaceholder:'กรอกรหัสผ่านใหม่ซ้ำอีกครั้ง',inputAttributes:{autocomplete:'new-password'},showCancelButton:true,confirmButtonText:'เปลี่ยนรหัสผ่าน',cancelButtonText:'ยกเลิก',inputValidator:v=>v!==first.value?'รหัสผ่านทั้งสองครั้งไม่ตรงกัน':undefined});
+    if(!second.isConfirmed)return;
+    const res=await run('changeMyPassword',{newPassword:first.value});
+    if(res.success)await Swal.fire('เปลี่ยนรหัสผ่านแล้ว','ใช้รหัสผ่านใหม่ในการเข้าสู่ระบบครั้งถัดไป','success');
+    else await Swal.fire('ไม่สำเร็จ',res.error||'ไม่สามารถเปลี่ยนรหัสผ่านได้','error');
+}
 
 function openAddAdminUserModal() {
     document.getElementById('form-admin-user').reset();
