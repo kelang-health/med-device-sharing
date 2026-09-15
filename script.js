@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.8 Photo Source Choice)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.9 Smartphone Responsive UX)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -264,7 +264,15 @@ async function runEquipmentStatusSync() {
 
 function applyAdminSessionUi() {
     const sidebar=document.getElementById('sidebar'),wrapper=document.getElementById('main-wrapper');
-    if(sidebar)sidebar.classList.remove('hidden'); if(wrapper)wrapper.classList.add('md:pl-64');
+    if(sidebar){
+        sidebar.classList.remove('hidden');
+        sidebar.classList.remove('-translate-x-full');
+        if(window.innerWidth < 768) sidebar.classList.remove('mobile-open');
+    }
+    if(wrapper)wrapper.classList.add('md:pl-64');
+    document.body.classList.remove('mobile-menu-open');
+    const mobileBackdrop=document.getElementById('mobile-sidebar-backdrop');
+    if(mobileBackdrop)mobileBackdrop.classList.remove('active');
     const brand=document.getElementById('public-header-brand'),loginBtn=document.getElementById('btn-login-trigger'),info=document.getElementById('logged-admin-info'),displayName=document.getElementById('display-admin-name'),pdpaBadge=document.getElementById('pdpa-badge'),borrowLog=document.getElementById('borrow-log-section');
     if(brand)brand.classList.add('md:hidden'); if(loginBtn)loginBtn.classList.add('hidden'); if(info)info.classList.remove('hidden');
     if(displayName)displayName.innerText=`${state.role==='ADMIN'?'ADMIN':'STAFF'}: ${state.adminName||'-'}`;
@@ -1203,6 +1211,7 @@ function switchTab(tabId) {
         return;
     }
     state.currentTab = tabId;
+    if (window.innerWidth < 768) closeMobileSidebar();
     const views = document.querySelectorAll('.app-view');
     views.forEach(v => v.classList.add('hidden'));
 
@@ -1256,15 +1265,46 @@ function toggleSidebarMinimize() {
     }
 }
 
+function closeMobileSidebar() {
+    if (window.innerWidth >= 768) return;
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('mobile-sidebar-backdrop');
+    const toggle = document.getElementById('sidebar-toggle');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (backdrop) backdrop.classList.remove('active');
+    document.body.classList.remove('mobile-menu-open');
+    if (toggle) toggle.setAttribute('aria-expanded','false');
+}
+
 function toggleMobileSidebar() {
     const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('mobile-sidebar-backdrop');
+    const toggle = document.getElementById('sidebar-toggle');
     if (!state.isAdmin) {
         Swal.fire('ระงับการทำงาน', 'แถบข้างซ้ายถูกล็อกไว้เฉพาะเจ้าหน้าที่ที่ผ่านการล็อกอินแล้ว', 'info');
         return;
     }
-    sidebar.classList.toggle('hidden');
-    sidebar.classList.toggle('-translate-x-full');
+    if (window.innerWidth >= 768) {
+        toggleSidebarMinimize();
+        return;
+    }
+    const willOpen = !sidebar.classList.contains('mobile-open');
+    sidebar.classList.toggle('mobile-open', willOpen);
+    if (backdrop) backdrop.classList.toggle('active', willOpen);
+    document.body.classList.toggle('mobile-menu-open', willOpen);
+    if (toggle) toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
 }
+
+window.addEventListener('resize', () => {
+    if (window.innerWidth >= 768) {
+        const sidebar=document.getElementById('sidebar');
+        const backdrop=document.getElementById('mobile-sidebar-backdrop');
+        if(sidebar)sidebar.classList.remove('mobile-open');
+        if(backdrop)backdrop.classList.remove('active');
+        document.body.classList.remove('mobile-menu-open');
+    }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMobileSidebar(); });
 
 function initLeafletGISMap() {
     const mapDiv = document.getElementById('map-canvas');
