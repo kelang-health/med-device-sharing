@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.7 Console Hygiene)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.8 Photo Source Choice)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -1912,14 +1912,39 @@ async function viewBorrowImages(entryId) {
     body.innerHTML=validHtml+missingHtml+failedHtml+actionHtml;
     [...body.querySelectorAll('img[data-secure-gallery-index]')].forEach(img=>{img.onclick=async()=>{const pair=valid[Number(img.dataset.secureGalleryIndex)];const w=window.open('about:blank','_blank');const fresh=await getBorrowImageDataUrl(pair.id,true);if(fresh){if(w)w.location.href=fresh;else window.location.href=fresh;}else if(w)w.close();};});
 }
+function openBorrowPhotoSource(source){
+    if(existingBorrowImageIds.length + borrowPhotos.length >= 3){
+        Swal.fire('ครบจำนวนแล้ว','แนบรูปหลักฐานได้สูงสุด 3 รูป','info');
+        return;
+    }
+    const inputId=source==='camera'?'borrow-photo-camera-input':'borrow-photo-upload-input';
+    const input=document.getElementById(inputId);
+    if(!input){
+        Swal.fire('ไม่พบช่องเลือกรูป','กรุณารีเฟรชหน้าแล้วลองใหม่','error');
+        return;
+    }
+    input.click();
+}
 function replaceUnavailableBorrowImage(entryId,missingId){
     closeImageGallery();
     editBorrowRecord(entryId);
     const before=existingBorrowImageIds.length;
     existingBorrowImageIds=existingBorrowImageIds.filter(id=>normalizeBorrowImageId(id)!==normalizeBorrowImageId(missingId));
     if(existingBorrowImageIds.length!==before)renderBorrowPhotoPreviews();
-    Swal.fire({title:'พร้อมแนบรูปทดแทน',html:'ระบบนำรูปเดิมที่กู้ไม่ได้ออกจาก <b>ฟอร์มแก้ไขชั่วคราว</b> แล้ว<br><span class="text-xs text-gray-500">ฐานข้อมูลจะยังไม่เปลี่ยนจนกว่าคุณจะเลือกรูปใหม่และกด “อัปเดตข้อมูลรายการยืม”</span>',icon:'info',confirmButtonText:'รับทราบ'}).then(()=>{
-        const btn=document.getElementById('borrow-photo-trigger');if(btn)btn.scrollIntoView({behavior:'smooth',block:'center'});
+    Swal.fire({
+        title:'เพิ่มรูปทดแทน',
+        html:'ระบบนำรูปเดิมที่กู้ไม่ได้ออกจาก <b>ฟอร์มแก้ไขชั่วคราว</b> แล้ว<br><span class="text-xs text-gray-500">เลือกอัปโหลดรูปจากเครื่อง หรือถ่ายภาพใหม่ได้ทันที ข้อมูลจริงจะเปลี่ยนเมื่อกด “อัปเดตข้อมูลรายการยืม” เท่านั้น</span>',
+        icon:'info',
+        showDenyButton:true,
+        showCancelButton:true,
+        confirmButtonText:'อัปโหลดรูป',
+        denyButtonText:'ถ่ายภาพ',
+        cancelButtonText:'เลือกภายหลัง'
+    }).then(result=>{
+        const btn=document.getElementById('borrow-photo-trigger');
+        if(btn)btn.scrollIntoView({behavior:'smooth',block:'center'});
+        if(result.isConfirmed)openBorrowPhotoSource('upload');
+        else if(result.isDenied)openBorrowPhotoSource('camera');
     });
 }
 function closeImageGallery(){document.getElementById('modal-image-gallery').classList.remove('active');}
