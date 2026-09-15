@@ -1,0 +1,213 @@
+from pathlib import Path
+
+# ---------- index.html ----------
+p = Path('index.html')
+h = p.read_text(encoding='utf-8')
+h = h.replace('content="width=device-width, initial-scale=1.0"', 'content="width=device-width, initial-scale=1.0, viewport-fit=cover"', 1)
+h = h.replace('assets/logo.png?v=5.1.8', 'assets/logo.png?v=5.1.9')
+h = h.replace('style.css?v=5.1.8', 'style.css?v=5.1.9')
+h = h.replace('script.js?v=5.1.8', 'script.js?v=5.1.9')
+h = h.replace('ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.1.8 |', 'ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.1.9 |')
+if 'id="mobile-sidebar-backdrop"' not in h:
+    anchor = '    </aside>\n\n    <div id="main-wrapper"'
+    repl = '    </aside>\n    <div id="mobile-sidebar-backdrop" class="mobile-sidebar-backdrop print:hidden" onclick="closeMobileSidebar()" aria-hidden="true"></div>\n\n    <div id="main-wrapper"'
+    if anchor not in h:
+        raise SystemExit('aside anchor not found')
+    h = h.replace(anchor, repl, 1)
+p.write_text(h, encoding='utf-8')
+
+# ---------- script.js ----------
+p = Path('script.js')
+s = p.read_text(encoding='utf-8')
+s = s.replace('v5.1.8 Photo Source Choice', 'v5.1.9 Smartphone Responsive UX', 1)
+
+old = "if(sidebar)sidebar.classList.remove('hidden'); if(wrapper)wrapper.classList.add('md:pl-64');"
+new = """if(sidebar){
+        sidebar.classList.remove('hidden');
+        sidebar.classList.remove('-translate-x-full');
+        if(window.innerWidth < 768) sidebar.classList.remove('mobile-open');
+    }
+    if(wrapper)wrapper.classList.add('md:pl-64');
+    document.body.classList.remove('mobile-menu-open');
+    const mobileBackdrop=document.getElementById('mobile-sidebar-backdrop');
+    if(mobileBackdrop)mobileBackdrop.classList.remove('active');"""
+if old not in s:
+    raise SystemExit('applyAdminSessionUi anchor not found')
+s = s.replace(old, new, 1)
+
+old = """function toggleMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (!state.isAdmin) {
+        Swal.fire('ระงับการทำงาน', 'แถบข้างซ้ายถูกล็อกไว้เฉพาะเจ้าหน้าที่ที่ผ่านการล็อกอินแล้ว', 'info');
+        return;
+    }
+    sidebar.classList.toggle('hidden');
+    sidebar.classList.toggle('-translate-x-full');
+}"""
+new = """function closeMobileSidebar() {
+    if (window.innerWidth >= 768) return;
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('mobile-sidebar-backdrop');
+    const toggle = document.getElementById('sidebar-toggle');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (backdrop) backdrop.classList.remove('active');
+    document.body.classList.remove('mobile-menu-open');
+    if (toggle) toggle.setAttribute('aria-expanded','false');
+}
+
+function toggleMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('mobile-sidebar-backdrop');
+    const toggle = document.getElementById('sidebar-toggle');
+    if (!state.isAdmin) {
+        Swal.fire('ระงับการทำงาน', 'แถบข้างซ้ายถูกล็อกไว้เฉพาะเจ้าหน้าที่ที่ผ่านการล็อกอินแล้ว', 'info');
+        return;
+    }
+    if (window.innerWidth >= 768) {
+        toggleSidebarMinimize();
+        return;
+    }
+    const willOpen = !sidebar.classList.contains('mobile-open');
+    sidebar.classList.toggle('mobile-open', willOpen);
+    if (backdrop) backdrop.classList.toggle('active', willOpen);
+    document.body.classList.toggle('mobile-menu-open', willOpen);
+    if (toggle) toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
+
+window.addEventListener('resize', () => {
+    if (window.innerWidth >= 768) {
+        const sidebar=document.getElementById('sidebar');
+        const backdrop=document.getElementById('mobile-sidebar-backdrop');
+        if(sidebar)sidebar.classList.remove('mobile-open');
+        if(backdrop)backdrop.classList.remove('active');
+        document.body.classList.remove('mobile-menu-open');
+    }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMobileSidebar(); });"""
+if old not in s:
+    raise SystemExit('mobile sidebar function anchor not found')
+s = s.replace(old, new, 1)
+
+old = '    state.currentTab = tabId;\n'
+new = '    state.currentTab = tabId;\n    if (window.innerWidth < 768) closeMobileSidebar();\n'
+if old not in s:
+    raise SystemExit('switchTab anchor not found')
+s = s.replace(old, new, 1)
+p.write_text(s, encoding='utf-8')
+
+# ---------- style.css ----------
+p = Path('style.css')
+c = p.read_text(encoding='utf-8')
+marker = '/* ---------- smartphone responsive v5.1.9 ---------- */'
+if marker not in c:
+    c += r'''
+
+/* ---------- smartphone responsive v5.1.9 ---------- */
+html,body{ max-width:100%; overflow-x:hidden; }
+.mobile-sidebar-backdrop{ display:none; }
+
+@media (max-width:767px){
+  :root{ --mobile-header-h:64px; }
+  html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  body{ min-height:100dvh; padding-bottom:env(safe-area-inset-bottom); }
+  body.mobile-menu-open{ overflow:hidden; touch-action:none; }
+
+  #sidebar{
+    display:flex !important;
+    width:min(86vw,19rem) !important;
+    max-width:19rem;
+    transform:translateX(-105%);
+    transition:transform .24s ease;
+    z-index:60;
+    padding-top:env(safe-area-inset-top);
+    height:100dvh;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    box-shadow:12px 0 36px rgba(15,23,42,.22);
+  }
+  #sidebar.mobile-open{ transform:translateX(0); }
+  #sidebar.collapsed{ width:min(86vw,19rem) !important; }
+  #sidebar.collapsed .agency-name-block,#sidebar.collapsed .menu-text{ opacity:1; width:auto; overflow:visible; pointer-events:auto; }
+  #sidebar.collapsed nav button,#sidebar.collapsed .p-3.border-t button{ justify-content:flex-start; }
+
+  .mobile-sidebar-backdrop{
+    position:fixed; inset:0; z-index:55;
+    display:block; opacity:0; visibility:hidden;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(2px);
+    transition:opacity .2s ease,visibility .2s ease;
+  }
+  .mobile-sidebar-backdrop.active{ opacity:1; visibility:visible; }
+
+  #main-wrapper{ padding-left:0 !important; width:100%; min-width:0; }
+  header.sticky{
+    padding:calc(.55rem + env(safe-area-inset-top)) .75rem .55rem !important;
+    min-height:var(--mobile-header-h);
+    gap:.5rem;
+  }
+  header.sticky > div{ min-width:0; }
+  #sidebar-toggle{ width:44px; height:44px; padding:0 !important; display:flex; align-items:center; justify-content:center; flex:0 0 44px; }
+  #public-header-brand{ gap:.5rem !important; min-width:0; }
+  #public-header-brand img{ width:34px !important; height:34px !important; }
+  #nav-title{ font-size:13px !important; line-height:1.25 !important; max-width:42vw; }
+  #nav-subtitle{ display:none; }
+  #logged-admin-info{ max-width:36vw; min-width:0; }
+  #display-admin-name{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:.55rem .65rem !important; }
+  #pdpa-badge{ display:none !important; }
+  #theme-toggle-btn{ width:40px; height:40px; flex:0 0 40px; }
+  #font-scale-control{ display:none !important; }
+  #btn-login-trigger{ min-height:42px; padding:.55rem .75rem !important; white-space:nowrap; }
+
+  main{ padding:.75rem !important; padding-bottom:calc(1rem + env(safe-area-inset-bottom)) !important; max-width:100vw !important; overflow-x:hidden; }
+  .app-view{ min-width:0; }
+  #dashboard-kpi-grid{ gap:.6rem !important; }
+  .stat-card{ padding:.75rem !important; min-width:0; }
+  .stat-card h4{ font-size:22px !important; }
+  .stat-card p{ line-height:1.25 !important; }
+
+  button,[role="button"],select,input[type="button"],input[type="submit"]{ min-height:44px; }
+  input,select,textarea{ font-size:16px !important; max-width:100%; }
+  textarea{ min-height:72px; }
+  .photo-preview-remove{ width:32px; height:32px; font-size:14px; top:5px; right:5px; }
+  #borrow-photo-trigger .grid{ grid-template-columns:1fr 1fr !important; gap:.5rem !important; }
+  #borrow-photo-trigger button{ min-height:52px; padding:.65rem .5rem !important; font-size:14px !important; }
+
+  .modal-backdrop{ align-items:flex-end; padding:0; overscroll-behavior:contain; }
+  .modal-backdrop > div{
+    width:100% !important;
+    max-width:100% !important;
+    max-height:calc(100dvh - env(safe-area-inset-top)) !important;
+    border-radius:18px 18px 0 0 !important;
+    overflow-y:auto !important;
+    overscroll-behavior:contain;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .modal-backdrop .grid.grid-cols-2{ grid-template-columns:1fr !important; }
+  .modal-backdrop .grid.grid-cols-3{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  #image-gallery-body.grid{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+
+  .table-report{ min-width:720px; }
+  .table-report th,.table-report td{ white-space:nowrap; }
+  .overflow-x-auto{ -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
+
+  #map-canvas{ min-height:55dvh !important; height:55dvh !important; }
+  .leaflet-control-container{ font-size:14px; }
+  .leaflet-touch .leaflet-control-layers,.leaflet-touch .leaflet-bar{ border-width:1px; }
+
+  .swal2-popup{ width:calc(100vw - 1rem) !important; max-width:420px !important; font-size:15px !important; }
+  .swal2-actions{ width:100%; gap:.4rem; }
+  .swal2-actions button{ min-height:44px; margin:.15rem !important; }
+
+  footer{ padding-left:.75rem !important; padding-right:.75rem !important; padding-bottom:calc(.75rem + env(safe-area-inset-bottom)) !important; }
+}
+
+@media (max-width:390px){
+  #nav-title{ max-width:34vw; font-size:12px !important; }
+  #logged-admin-info{ max-width:32vw; }
+  #image-gallery-body.grid{ grid-template-columns:1fr !important; }
+  #borrow-photo-trigger .grid{ grid-template-columns:1fr !important; }
+  #borrow-photo-trigger button{ min-height:48px; }
+}
+'''
+p.write_text(c, encoding='utf-8')
+print('patched v5.1.9 smartphone responsive UX')
