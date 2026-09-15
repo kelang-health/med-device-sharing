@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.5 Missing Image Recovery)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v5.1.6 Legacy Image State)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
@@ -1833,7 +1833,7 @@ async function getBorrowImageDataUrl(value, forceRefresh=false){
     if(!r||!r.success||!r.dataUrl){
         const msg=(r&&r.error)?String(r.error):'โหลดรูปหลักฐานไม่สำเร็จ';
         borrowImageErrorCache.set(id,msg);
-        console.warn('โหลดรูปหลักฐานไม่สำเร็จ',{fileId:id,response:r});
+        if(isLegacyImageUnavailableError(msg)) console.info('รูปหลักฐานเก่าไม่มีไฟล์หลัง migration',{fileId:id}); else console.warn('โหลดรูปหลักฐานไม่สำเร็จ',{fileId:id,response:r});
         return '';
     }
     borrowImageErrorCache.delete(id);
