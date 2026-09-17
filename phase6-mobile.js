@@ -118,6 +118,6 @@
   document.addEventListener('DOMContentLoaded',()=>{
     injectUi();
     const code=new URLSearchParams(location.search).get('equipment')||new URLSearchParams(location.search).get('code');
-    if(code)setTimeout(()=>showEquipment(code),650);
+    if(code)setTimeout(()=>window.showPublicEquipmentProfileV61?window.showPublicEquipmentProfileV61(code):showEquipment(code),650);
   });
 })();
