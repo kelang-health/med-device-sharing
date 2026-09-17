@@ -1,0 +1,37 @@
+/* Phase 6 — Equipment Lifecycle / Preventive Maintenance / Label Printing */
+.phase6-kpi{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:14px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.phase6-kpi .value{font-size:1.7rem;line-height:1;font-weight:800;margin-top:6px}
+.phase6-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.phase6-chip-ok{background:#ecfdf5;color:#047857}.phase6-chip-soon{background:#fffbeb;color:#b45309}.phase6-chip-overdue{background:#fff1f2;color:#be123c}.phase6-chip-usage{background:#fff7ed;color:#c2410c}.phase6-chip-none{background:#f1f5f9;color:#475569}
+.phase6-table-wrap{overflow:auto;-webkit-overflow-scrolling:touch}
+.phase6-table{width:100%;min-width:900px;border-collapse:separate;border-spacing:0}
+.phase6-table th{position:sticky;top:0;background:#f8fafc;color:#64748b;font-size:11px;text-align:left;padding:10px;border-bottom:1px solid #e5e7eb;z-index:1}
+.phase6-table td{font-size:12px;padding:10px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.phase6-table tr:hover td{background:#fafafa}
+.phase6-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;border-radius:10px;padding:8px 11px;font-size:11px;font-weight:700;transition:.15s;border:1px solid transparent}
+.phase6-btn-primary{background:#4f46e5;color:#fff}.phase6-btn-primary:hover{background:#4338ca}.phase6-btn-soft{background:#eef2ff;color:#4338ca;border-color:#e0e7ff}.phase6-btn-soft:hover{background:#e0e7ff}.phase6-btn-green{background:#ecfdf5;color:#047857;border-color:#d1fae5}.phase6-btn-green:hover{background:#d1fae5}.phase6-btn-amber{background:#fffbeb;color:#b45309;border-color:#fef3c7}.phase6-btn-amber:hover{background:#fef3c7}.phase6-btn-dark{background:#0f172a;color:#fff}.phase6-btn-dark:hover{background:#1e293b}
+.phase6-overlay{position:fixed;inset:0;z-index:10080;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
+.phase6-modal{width:min(1040px,100%);max-height:min(92dvh,900px);overflow:auto;background:#fff;border-radius:22px;box-shadow:0 24px 70px rgba(15,23,42,.28)}
+.phase6-modal-sm{width:min(700px,100%)}
+.phase6-modal-head{position:sticky;top:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 18px;background:rgba(255,255,255,.97);border-bottom:1px solid #eef2f7;backdrop-filter:blur(8px)}
+.phase6-modal-body{padding:18px}
+.phase6-close{width:38px;height:38px;border-radius:11px;background:#f1f5f9;color:#475569;display:flex;align-items:center;justify-content:center;border:0}.phase6-close:hover{background:#e2e8f0}
+.phase6-summary-card{border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:#fff}
+.phase6-timeline{position:relative;margin-left:10px;padding-left:22px;border-left:2px solid #e2e8f0}
+.phase6-event{position:relative;padding:0 0 18px 0}.phase6-event:before{content:"";position:absolute;left:-29px;top:4px;width:12px;height:12px;border-radius:999px;background:#6366f1;border:3px solid #eef2ff;box-sizing:content-box}
+.phase6-event-title{font-size:12px;font-weight:800;color:#334155}.phase6-event-meta{font-size:10px;color:#94a3b8;margin-top:2px}.phase6-event-detail{font-size:11px;color:#64748b;margin-top:4px;white-space:pre-wrap}
+.phase6-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.phase6-field label{display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:5px}.phase6-field input,.phase6-field select,.phase6-field textarea{width:100%;border:1px solid #dbe2ea;border-radius:11px;padding:10px 11px;font-size:13px;background:#fff;outline:none}.phase6-field input:focus,.phase6-field select:focus,.phase6-field textarea:focus{border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,.10)}
+.phase6-checklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.phase6-checkitem{display:flex;align-items:flex-start;gap:8px;background:#f8fafc;border:1px solid #eef2f7;border-radius:11px;padding:9px;font-size:11px;color:#475569}
+.phase6-label-layout{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:20px;align-items:start}
+.phase6-label-controls{background:#f8fafc;border:1px solid #e5e7eb;border-radius:16px;padding:14px}
+.phase6-label-stage{background:repeating-linear-gradient(45deg,#f8fafc,#f8fafc 10px,#f1f5f9 10px,#f1f5f9 20px);border:1px dashed #cbd5e1;border-radius:18px;min-height:320px;padding:22px;display:flex;align-items:center;justify-content:center;overflow:auto}
+.phase6-label-preview{position:relative;background:#fff;color:#111827;border:1px solid #94a3b8;box-shadow:0 8px 28px rgba(15,23,42,.14);overflow:hidden;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr auto;gap:3px;padding:4mm;box-sizing:border-box;font-family:'Sarabun',Arial,sans-serif}
+.phase6-label-preview .agency{grid-column:1/3;font-size:8px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.phase6-label-preview .eq-name{font-weight:800;line-height:1.15;overflow:hidden}.phase6-label-preview .eq-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:900;letter-spacing:.5px}.phase6-label-preview .serial{font-size:7px;line-height:1.15;color:#475569;overflow:hidden}.phase6-label-preview .qr-wrap{grid-column:2;grid-row:2/4;display:flex;align-items:center;justify-content:center}.phase6-label-preview .barcode-wrap{grid-column:1;display:flex;align-items:end;overflow:hidden}.phase6-label-preview .barcode-wrap svg{width:100%;height:12mm}.phase6-label-preview .qr-wrap canvas,.phase6-label-preview .qr-wrap img{width:18mm!important;height:18mm!important;image-rendering:pixelated}.phase6-label-preview .label-logo{position:absolute;right:3mm;top:2.5mm;width:9mm;height:9mm;object-fit:contain;background:#fff;border-radius:50%}
+.phase6-label-checks{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.phase6-label-checks label{display:flex;gap:7px;align-items:center;font-size:11px;color:#475569;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:8px}
+.phase6-empty{padding:36px;text-align:center;color:#94a3b8;font-size:12px}
+.phase6-due-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed #e5e7eb;font-size:11px}.phase6-due-row:last-child{border-bottom:0}
+.phase6-public-card{max-width:560px;margin:auto;background:#fff;border-radius:22px;border:1px solid #e5e7eb;padding:20px;text-align:left}
+.phase6-mobile-scan{display:none}
+@media(max-width:767px){.phase6-form-grid,.phase6-checklist{grid-template-columns:1fr}.phase6-label-layout{grid-template-columns:1fr}.phase6-modal{max-height:94dvh;border-radius:18px}.phase6-modal-body{padding:14px}.phase6-overlay{padding:8px}.phase6-mobile-scan{display:inline-flex}.phase6-label-stage{min-height:260px;padding:12px}.phase6-table{min-width:760px}}
+@media(max-width:420px){.phase6-kpi .value{font-size:1.45rem}.phase6-btn{min-height:42px}.phase6-label-checks{grid-template-columns:1fr}.phase6-label-preview{padding:3mm}}
+@media print{.phase6-overlay,.phase6-modal{display:none!important}}
