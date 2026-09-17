@@ -1,0 +1,46 @@
+name: Phase 6 mobile scanner v6.0.1
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'phase6-mobile.js'
+      - '.github/workflows/phase6-mobile-v601.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch index
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('phase6.css?v=6.0.0','phase6.css?v=6.0.1')
+          s=s.replace('phase6.js?v=6.0.0','phase6.js?v=6.0.1')
+          if 'phase6-mobile.js' not in s:
+              if '</body>' not in s:
+                  raise SystemExit('missing </body>')
+              s=s.replace('</body>','    <script src="phase6-mobile.js?v=6.0.1"></script>\n</body>')
+          s=s.replace('v6.0.0 | Design & Developed','v6.0.1 | Design & Developed')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Validate
+        run: |
+          grep -q 'phase6-mobile.js?v=6.0.1' index.html
+          grep -q 'phase6.css?v=6.0.1' index.html
+          node --check phase6.js
+          node --check phase6-mobile.js
+          git diff --check
+      - name: Commit
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'v6.0.1: enable smartphone equipment scanner'
+          git push
