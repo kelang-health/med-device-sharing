@@ -11,7 +11,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="style.css?v=5.1.10" />
+    <link rel="stylesheet" href="style.css?v=6.0.0" />
+    <link rel="stylesheet" href="phase6.css?v=6.0.0" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
 
@@ -46,6 +47,10 @@
                 <button onclick="switchTab('equipments')" id="btn-menu-equipments" class="menu-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
                     <i class="fa-solid fa-wheelchair text-lg text-amber-500 w-6 text-center"></i>
                     <span class="menu-text transition-all duration-200">คลังกายอุปกรณ์</span>
+                </button>
+                <button onclick="openLifecycleTab()" id="btn-menu-lifecycle" class="menu-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
+                    <i class="fa-solid fa-screwdriver-wrench text-lg text-emerald-600 w-6 text-center"></i>
+                    <span class="menu-text transition-all duration-200">ประวัติ / บำรุงรักษา</span>
                 </button>
                 <button onclick="switchTab('tracking')" id="btn-menu-tracking" class="menu-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all">
                     <i class="fa-solid fa-clipboard-list text-lg text-orange-500 w-6 text-center"></i>
@@ -333,6 +338,39 @@
 </div>
                     </div>
                 </div>
+            </section>
+
+            <section id="sec-lifecycle" class="app-view space-y-6 hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 print:hidden">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench text-emerald-600"></i> ทะเบียนประวัติและบำรุงรักษาอุปกรณ์</h3>
+                        <p class="text-xs text-gray-400 mt-1">Equipment Lifecycle · Preventive Maintenance · Barcode / QR · สติ๊กเกอร์ 75×50 mm</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="loadPhase6Lifecycle(true)" class="bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-2 rounded-xl text-xs font-bold"><i class="fa-solid fa-rotate mr-1"></i> รีเฟรช</button>
+                        <button onclick="openMaintenancePlanManager()" class="admin-role-only bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-bold"><i class="fa-solid fa-calendar-check mr-1"></i> แผน PM</button>
+                    </div>
+                </div>
+                <div class="p6-kpis">
+                    <div class="p6-kpi"><span>อุปกรณ์ทั้งหมด</span><b id="p6-kpi-total">0</b></div>
+                    <div class="p6-kpi"><span>PM เกินกำหนด</span><b id="p6-kpi-overdue">0</b></div>
+                    <div class="p6-kpi"><span>ครบใน 30 วัน</span><b id="p6-kpi-soon">0</b></div>
+                    <div class="p6-kpi"><span>ครบตามการใช้งาน</span><b id="p6-kpi-usage">0</b></div>
+                    <div class="p6-kpi"><span>ยังไม่มีแผน PM</span><b id="p6-kpi-noplan">0</b></div>
+                </div>
+                <div class="p6-section-card p6-toolbar print:hidden">
+                    <input id="p6-search" type="search" oninput="renderPhase6Lifecycle()" placeholder="ค้นหารหัส ชื่ออุปกรณ์ หรือ Serial">
+                    <select id="p6-state-filter" onchange="renderPhase6Lifecycle()">
+                        <option value="all">สถานะ PM ทั้งหมด</option>
+                        <option value="OVERDUE">เกินกำหนด</option>
+                        <option value="DUE_SOON">ใกล้ครบ 30 วัน</option>
+                        <option value="DUE_USAGE">ครบตามจำนวนใช้งาน</option>
+                        <option value="OK">ปกติ</option>
+                        <option value="NO_PLAN">ยังไม่มีแผน</option>
+                    </select>
+                    <span class="text-xs text-gray-400">กด “ประวัติ” เพื่อดู Timeline · “บำรุง” เพื่อบันทึก PM · “สติ๊กเกอร์” เพื่อพิมพ์ Barcode/QR</span>
+                </div>
+                <div id="phase6-equipment-list"><div class="p6-loading">เปิดเมนูเพื่อประมวลข้อมูล</div></div>
             </section>
 
             <section id="sec-tracking" class="app-view space-y-6 hidden">
@@ -898,7 +936,7 @@
         </main>
 
         <footer class="bg-white border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400 font-medium mt-auto print:hidden">
-            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v5.2.0 | Design & Developed by Apiwat Meethong</div>
+            <div>ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ v6.0.0 | Design & Developed by Apiwat Meethong</div>
         </footer>
     </div>
 
@@ -1074,6 +1112,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=5.2.0"></script>
+    <script src="script.js?v=6.0.0"></script>
+    <script src="phase6.js?v=6.0.0"></script>
 </body>
 </html>
