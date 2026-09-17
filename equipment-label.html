@@ -60,4 +60,5 @@ async function saveSettings(){if(!payloadData)return;const r=await run('saveEqui
 function printLabel(){applyPreview();const w=num('widthMm',75),h=num('heightMm',50),copies=Math.max(1,Math.min(20,num('copies',1)));let style=document.getElementById('dynamicPrint');if(!style){style=document.createElement('style');style.id='dynamicPrint';document.head.appendChild(style)}style.textContent=`@media print{@page{size:${w}mm ${h}mm;margin:0}.label{width:${w}mm!important;height:${h}mm!important;page-break-after:always}}`;const shell=document.querySelector('.label-shell');document.querySelectorAll('.print-copy').forEach(x=>x.remove());for(let i=1;i<copies;i++){const clone=document.getElementById('label').cloneNode(true);clone.classList.add('print-copy');clone.querySelector('#qr')?.replaceChildren();shell.appendChild(clone)};setTimeout(()=>window.print(),100)}
 ['widthMm','heightMm','fontScale','showLogo','showAgency','showSerial','showBarcode','showQr'].forEach(id=>document.getElementById(id).addEventListener('input',applyPreview));load();
 </script>
+<script src="equipment-label-enhance.js?v=6.0.2"></script>
 </body></html>

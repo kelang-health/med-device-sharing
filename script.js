@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v6.0.0 Equipment Lifecycle & Maintenance)
+ * ระบบบริหารจัดการยืมคืนอุปกรณ์การแพทย์ - Frontend Controller API (v6.0.2 Equipment Lifecycle & Barcode)
  * พัฒนาโดย: ศบส.บ้านโทกหัวช้าง (James)
  */
 
