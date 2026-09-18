@@ -1,4 +1,4 @@
-/* Phase 6.2.0 — PM baseline, checklist, meter history, plan editing */
+/* Phase 6.2.3 — PM baseline, checklist, meter history, plan editing */
 (function(){
   if (typeof p6InitFromUrl === 'function') {
     document.removeEventListener('DOMContentLoaded', p6InitFromUrl);
@@ -155,8 +155,27 @@
   window.openBaselineManager=async function(){
     if(!phase6Items.length)await loadPhase6Lifecycle(true);
     const rows=phase6Items.filter(x=>x.maintenanceState==='BASELINE_REQUIRED');
-    const html=rows.length?rows.map(x=>`<div class="p6-plan-row"><div><b>${p6Esc(x.equipmentCode)} — ${p6Esc(x.equipmentName)}</b><div class="p6-muted">${p6Esc(x.serialNumber||'-')} • ${p6Esc(x.maintenancePlan||'')}</div></div><button onclick="Swal.close();setTimeout(()=>openBaselineForm('${p6Esc(x.equipmentCode)}'),80)">บันทึก Baseline</button></div>`).join(''):'<div class="p6-empty">ไม่มีเครื่องที่ต้องตั้ง PM เริ่มต้น</div>';
-    Swal.fire({title:`PM เริ่มต้น (${rows.length} เครื่อง)`,html:`<div class="p6-plan-list">${html}</div>`,width:900,confirmButtonText:'ปิด'});
+    const priorityOf=(name)=>{
+      const n=String(name||'').trim();
+      if(['ถังออกซิเจน','เครื่องดูดเสมหะ','เครื่องเจาะน้ำตาล-DTX','ที่นอนลม'].includes(n))return {level:'P1',rank:1};
+      if(['รถเข็น','เตียง','รถเข็น สีฟ้า','รถเข็นสีฟ้า (2)','รถนอน (เปลเข็น)'].includes(n))return {level:'P2',rank:2};
+      return {level:'P3',rank:3};
+    };
+    const enriched=rows.map(x=>({...x,_priority:priorityOf(x.equipmentName)})).sort((a,b)=>a._priority.rank-b._priority.rank||String(a.equipmentName).localeCompare(String(b.equipmentName),'th')||String(a.equipmentCode).localeCompare(String(b.equipmentCode)));
+    const groupHtml=(level,title,desc,bg,border)=>{
+      const list=enriched.filter(x=>x._priority.level===level);
+      if(!list.length)return '';
+      const byType={};list.forEach(x=>{const k=x.equipmentName||'-';(byType[k]||(byType[k]=[])).push(x);});
+      const typeSummary=Object.entries(byType).map(([name,items])=>`<span style="display:inline-block;margin:2px 5px 2px 0;padding:4px 8px;border-radius:999px;background:#fff;border:1px solid ${border};font-size:12px"><b>${p6Esc(name)}</b> ${items.length}</span>`).join('');
+      const cards=list.map(x=>`<div class="p6-plan-row" style="align-items:center"><div style="min-width:0"><div><b>${p6Esc(x.equipmentCode)} — ${p6Esc(x.equipmentName)}</b></div><div class="p6-muted">${p6Esc(x.serialNumber||'-')} • ${p6Esc(x.maintenancePlan||'มีแผน PM แล้ว')}</div></div><button onclick="Swal.close();setTimeout(()=>openBaselineForm('${p6Esc(x.equipmentCode)}'),80)">บันทึก Baseline</button></div>`).join('');
+      return `<section style="margin:12px 0;border:1px solid ${border};background:${bg};border-radius:16px;padding:12px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px"><div><b style="font-size:16px">${level} — ${title}</b><div class="p6-muted">${desc}</div></div><span class="p6-badge" style="background:#fff;border:1px solid ${border};font-weight:800">${list.length} เครื่อง</span></div><div style="margin-bottom:9px">${typeSummary}</div><div class="p6-plan-list">${cards}</div></section>`;
+    };
+    const p1=enriched.filter(x=>x._priority.level==='P1').length;
+    const p2=enriched.filter(x=>x._priority.level==='P2').length;
+    const p3=enriched.filter(x=>x._priority.level==='P3').length;
+    const summary=`<div class="p6-profile-grid" style="margin-bottom:10px"><div><span>คงเหลือทั้งหมด</span><b>${rows.length}</b></div><div><span>P1 ความปลอดภัยสูง</span><b>${p1}</b></div><div><span>P2 เคลื่อนย้าย/เตียง</span><b>${p2}</b></div><div><span>P3 ช่วยเดิน</span><b>${p3}</b></div></div>`;
+    const html=rows.length ? summary+groupHtml('P1','ความปลอดภัยสูง','ถังออกซิเจน → เครื่องดูดเสมหะ → DTX → ที่นอนลม','#fff7ed','#fdba74')+groupHtml('P2','การเคลื่อนย้ายและเตียง','รถเข็น/เตียง/เปลเข็น','#eff6ff','#93c5fd')+groupHtml('P3','อุปกรณ์ช่วยเดิน','วอคเกอร์/ไม้ค้ำยัน/ไม้เท้า 3 ขา','#f8fafc','#cbd5e1')+'<div class="p6-info">Worklist นี้ใช้เพื่อจัดลำดับงานเท่านั้น ระบบจะไม่สร้าง PM เริ่มต้นอัตโนมัติ เมื่อบันทึก Baseline รายเครื่องสำเร็จ เครื่องนั้นจะหายจากรายการคงเหลือ</div>' : '<div class="p6-empty">ไม่มีเครื่องที่ต้องตั้ง PM เริ่มต้น</div>';
+    Swal.fire({title:`Baseline Worklist (${rows.length} เครื่อง)`,html:`<div class="p6-profile" style="text-align:left;max-height:70vh;overflow:auto">${html}</div>`,width:1040,confirmButtonText:'ปิด'});
   };
 
   window.openPhase6DataQuality=async function(){
