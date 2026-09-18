@@ -1,4 +1,4 @@
-/* Phase 6.0.2 — PM baseline, checklist, meter history, plan editing */
+/* Phase 6.2.0 — PM baseline, checklist, meter history, plan editing */
 (function(){
   if (typeof p6InitFromUrl === 'function') {
     document.removeEventListener('DOMContentLoaded', p6InitFromUrl);
@@ -109,6 +109,69 @@
     phase6Items=[];loadPhase6Lifecycle(true);
   };
 
+
+  window.openBaselineForm=async function(code){
+    const r=await p6Run('getEquipmentProfile',{equipmentCode:code});
+    if(!r?.success){Swal.fire('โหลดข้อมูลไม่ได้',r?.error||'ไม่พบข้อมูลอุปกรณ์','error');return;}
+    const p=r.data,plans=p.maintenancePlans||[];
+    if(!plans.length){Swal.fire('ยังไม่มีแผน PM','ต้องสร้างแผน PM สำหรับอุปกรณ์ชนิดนี้ก่อนบันทึก Baseline','warning');return;}
+    const opts=plans.map(x=>`<option value="${x.id}">${p6Esc(x.plan_name)} — ทุก ${x.interval_months} เดือน${x.interval_borrow_count?` / ${x.interval_borrow_count} ครั้ง`:''}</option>`).join('');
+    const today=new Date(Date.now()+7*3600000).toISOString().slice(0,10);
+    const html=`<div class="p6-form">
+      <label>แผน PM<select id="p6b-plan">${opts}</select></label>
+      <label>แหล่งอ้างอิงวันที่<select id="p6b-source"><option value="TODAY_INSPECTION">ตรวจสภาพ/PM วันนี้</option><option value="DOCUMENT">เอกสารประวัติเดิม</option><option value="STICKER">สติกเกอร์/ป้าย PM เดิม</option></select></label>
+      <label>วันที่อ้างอิง PM<input id="p6b-date" type="date" value="${today}" max="${today}"></label>
+      <label>ผลตรวจ<select id="p6b-result"><option value="PASS">ผ่าน / พร้อมใช้งาน</option><option value="FOLLOW_UP">ต้องติดตาม</option><option value="REPAIR">ส่งซ่อม</option><option value="OUT_OF_SERVICE">งดใช้งาน</option></select></label>
+      <label>ผู้ตรวจ / ผู้ให้บริการ<input id="p6b-provider" placeholder="เช่น เจ้าหน้าที่ / บริษัท"></label>
+      <label>ชั่วโมงใช้งาน (ถ้ามี)<input id="p6b-hours" type="number" min="0" step="0.1"></label>
+      <label class="p6-span2">Checklist<div id="p6b-checklist" class="p6-checklist-wrap"></div></label>
+      <label class="p6-span2">หมายเหตุ<textarea id="p6b-note" rows="3" placeholder="หลักฐานที่ใช้, สภาพเครื่อง, สิ่งที่ตรวจพบ"></textarea></label>
+      <div class="p6-span2 p6-info">ห้ามคาดเดาวันย้อนหลัง: ถ้าไม่มีหลักฐานเดิมให้เลือก “ตรวจสภาพ/PM วันนี้”</div>
+    </div>`;
+    const ans=await Swal.fire({title:`ตั้ง PM เริ่มต้น ${p6Esc(p.equipment.equipmentName)} (${p6Esc(code)})`,html,width:820,showCancelButton:true,confirmButtonText:'บันทึกและเริ่มนับรอบ PM',cancelButtonText:'ยกเลิก',
+      didOpen:()=>{
+        const plan=document.getElementById('p6b-plan'),source=document.getElementById('p6b-source'),date=document.getElementById('p6b-date');
+        const render=()=>{document.getElementById('p6b-checklist').innerHTML=planChecklistHtml(plans,plan.value);};
+        plan.addEventListener('change',render);render();
+        source.addEventListener('change',()=>{if(source.value==='TODAY_INSPECTION'){date.value=today;date.readOnly=true;}else date.readOnly=false;});
+        date.readOnly=true;
+      },
+      preConfirm:()=>{
+        const source=document.getElementById('p6b-source').value,date=document.getElementById('p6b-date').value,result=document.getElementById('p6b-result').value;
+        if(!date){Swal.showValidationMessage('กรุณาระบุวันที่ PM เริ่มต้น');return false;}
+        if(date>today){Swal.showValidationMessage('วันที่ PM ต้องไม่เป็นอนาคต');return false;}
+        if(source==='TODAY_INSPECTION'&&date!==today){Swal.showValidationMessage('กรณีตรวจวันนี้ ต้องใช้วันที่วันนี้');return false;}
+        const checklistResult={};document.querySelectorAll('#p6b-checklist [data-p6-check]').forEach(el=>{checklistResult[el.dataset.label]=!!el.checked;});
+        if(result==='PASS'&&Object.keys(checklistResult).length&&Object.values(checklistResult).some(v=>!v)){Swal.showValidationMessage('ผลผ่าน ต้องตรวจ Checklist ให้ครบทุกข้อ');return false;}
+        return {baselineMode:true,maintenanceType:'BASELINE_PM',baselineSource:source,planId:document.getElementById('p6b-plan').value,performedAt:date,result,provider:document.getElementById('p6b-provider').value,meterHours:document.getElementById('p6b-hours').value,note:document.getElementById('p6b-note').value,checklistResult};
+      }});
+    if(!ans.isConfirmed)return;
+    const save=await p6Run('recordEquipmentMaintenance',{equipmentCode:code,...ans.value});
+    if(!save?.success){Swal.fire('บันทึกไม่ได้',save?.error||'เกิดข้อผิดพลาด','error');return;}
+    await Swal.fire('บันทึก PM เริ่มต้นแล้ว',`PM ถัดไป: ${p6Date(save.nextDueDate)}`,'success');
+    phase6Items=[];loadPhase6Lifecycle(true);
+  };
+
+  window.openBaselineManager=async function(){
+    if(!phase6Items.length)await loadPhase6Lifecycle(true);
+    const rows=phase6Items.filter(x=>x.maintenanceState==='BASELINE_REQUIRED');
+    const html=rows.length?rows.map(x=>`<div class="p6-plan-row"><div><b>${p6Esc(x.equipmentCode)} — ${p6Esc(x.equipmentName)}</b><div class="p6-muted">${p6Esc(x.serialNumber||'-')} • ${p6Esc(x.maintenancePlan||'')}</div></div><button onclick="Swal.close();setTimeout(()=>openBaselineForm('${p6Esc(x.equipmentCode)}'),80)">บันทึก Baseline</button></div>`).join(''):'<div class="p6-empty">ไม่มีเครื่องที่ต้องตั้ง PM เริ่มต้น</div>';
+    Swal.fire({title:`PM เริ่มต้น (${rows.length} เครื่อง)`,html:`<div class="p6-plan-list">${html}</div>`,width:900,confirmButtonText:'ปิด'});
+  };
+
+  window.openPhase6DataQuality=async function(){
+    const r=await p6Run('getPhase6DataQuality');
+    if(!r?.success){Swal.fire('โหลด Data Quality ไม่ได้',r?.error||'เกิดข้อผิดพลาด','error');return;}
+    const d=r.data||{},s=d.summary||{};
+    const dup=(d.duplicateSerials||[]).map(x=>`<div class="p6-due-row"><div><b>${p6Esc(x.value)}</b><div class="p6-muted">${(x.equipmentCodes||[]).map(p6Esc).join(', ')}</div></div><span class="p6-badge p6-red">${x.count} เครื่อง</span></div>`).join('')||'<div class="p6-empty">ไม่พบ Serial ซ้ำ</div>';
+    const noPlan=(d.noPlanTypes||[]).map(x=>`<div class="p6-due-row"><div><b>${p6Esc(x.equipmentName)}</b></div><span class="p6-badge p6-gray">${x.activeCount} เครื่อง</span></div>`).join('')||'<div class="p6-empty">ทุกชนิดมีแผน PM</div>';
+    Swal.fire({title:'Phase 6C — Data Quality',width:980,html:`<div class="p6-profile">
+      <div class="p6-profile-grid"><div><span>อุปกรณ์ใช้งาน</span><b>${s.activeTotal||0}</b></div><div><span>ต้องตั้ง Baseline</span><b>${s.baselineRequired||0}</b></div><div><span>Serial ซ้ำ</span><b>${s.duplicateSerialGroups||0} กลุ่ม</b></div><div><span>ข้อมูลระบุตัวเครื่องไม่ครบ</span><b>${s.incompleteIdentity||0}</b></div><div><span>ชนิดที่ไม่มีแผน PM</span><b>${s.noPlanTypes||0}</b></div><div><span>แผน PM active</span><b>${s.activePlans||0}</b></div></div>
+      <h4>Serial ซ้ำ</h4>${dup}<h4>ชนิดอุปกรณ์ที่ยังไม่มีแผน PM</h4>${noPlan}
+      <div class="p6-info">ระบบรายงานข้อผิดปกติเท่านั้น ไม่แก้ไขข้อมูลย้อนหลังอัตโนมัติ</div>
+    </div>`,confirmButtonText:'ปิด'});
+  };
+
   window.openMeterReadingForm=async function(code){
     const ans=await Swal.fire({title:`บันทึกค่ามิเตอร์ ${p6Esc(code)}`,html:`<div class="p6-form"><label>ประเภทมิเตอร์<select id="p6r-type"><option value="HOURS">ชั่วโมงใช้งาน</option><option value="CYCLE">จำนวนรอบ</option><option value="OTHER">อื่น ๆ</option></select></label><label>ค่าที่อ่านได้<input id="p6r-value" type="number" min="0" step="0.1" inputmode="decimal"></label><label class="p6-span2">หมายเหตุ<input id="p6r-note" placeholder="เช่น หลังคืนเครื่อง / ก่อนทำ PM"></label></div>`,showCancelButton:true,confirmButtonText:'บันทึก',cancelButtonText:'ยกเลิก',preConfirm:()=>{const value=Number(document.getElementById('p6r-value').value);if(!Number.isFinite(value)||value<0){Swal.showValidationMessage('กรุณาระบุค่ามิเตอร์ที่ถูกต้อง');return false;}return {meterType:document.getElementById('p6r-type').value,readingValue:value,note:document.getElementById('p6r-note').value};}});
     if(!ans.isConfirmed)return;
@@ -144,6 +207,14 @@
       const card=document.createElement('div');card.className='p6-kpi p6-kpi-baseline';card.innerHTML='<span>ต้องตั้งค่า PM เริ่มต้น</span><b id="p6-kpi-baseline">0</b>';
       const noPlan=document.getElementById('p6-kpi-noplan')?.closest('.p6-kpi');
       if(noPlan)kpis.insertBefore(card,noPlan);else kpis.appendChild(card);
+    }
+
+    const sec=document.getElementById('sec-lifecycle');
+    if(sec&&!document.getElementById('p6c-toolbar')){
+      const bar=document.createElement('div');bar.id='p6c-toolbar';bar.className='p6-inline-actions print:hidden';
+      bar.style.cssText='margin:8px 0 14px;display:flex;gap:8px;flex-wrap:wrap';
+      bar.innerHTML='<button type="button" onclick="openBaselineManager()"><i class="fa-solid fa-flag-checkered"></i> PM เริ่มต้น</button><button type="button" onclick="openPhase6DataQuality()"><i class="fa-solid fa-shield-halved"></i> Data Quality</button>';
+      const list=document.getElementById('phase6-equipment-list');if(list)sec.insertBefore(bar,list);
     }
     const filter=document.getElementById('p6-state-filter');
     if(filter&&![...filter.options].some(o=>o.value==='BASELINE_REQUIRED')){
