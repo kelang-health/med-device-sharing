@@ -1,4 +1,4 @@
-/* Phase 6.0.2 — stable dedicated label print copies for desktop/iPad */
+﻿/* Phase 6.2.2 — stable dedicated label print copies for desktop/iPad */
 (function(){
   function ensurePrintStack(){
     let stack=document.getElementById('printStack');
@@ -20,7 +20,7 @@
     clone.id='label-print-'+index;
     clone.classList.add('print-label-copy');
     const qr=clone.querySelector('#qr');
-    if(qr){qr.id='';if(qrUrl)qr.innerHTML=`<img src="${qrUrl}" alt="QR Code" style="width:18mm;height:18mm;display:block">`;}
+    if(qr){qr.id='';if(qrUrl)qr.innerHTML=`<img src="${qrUrl}" alt="QR Code" style="width:22mm;height:22mm;display:block">`;}
     const barcode=clone.querySelector('#barcode');if(barcode)barcode.id='';
     ['brand','logo','agencyTitle','agencySub','eqName','eqCode','serial','qrWrap','barcodeWrap'].forEach(id=>{const el=clone.querySelector('#'+id);if(el)el.removeAttribute('id');});
     return clone;
