@@ -27,7 +27,7 @@
   }
   window.printLabel=function(){
     applyPreview();
-    const w=num('widthMm',75),h=num('heightMm',50),copies=Math.max(1,Math.min(20,num('copies',1)));
+    const w=num('widthMm',90),h=num('heightMm',70),copies=Math.max(1,Math.min(20,num('copies',1)));
     const source=document.getElementById('label');if(!source||!payloadData)return;
     const stack=ensurePrintStack();stack.innerHTML='';
     const qrUrl=qrDataUrl();
