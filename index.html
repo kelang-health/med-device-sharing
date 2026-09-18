@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="style.css?v=6.0.0" />
-    <link rel="stylesheet" href="phase6.css?v=6.0.2" />
+    <link rel="stylesheet" href="phase6.css?v=6.2.4" />
     <link rel="stylesheet" href="phase6-enhance.css?v=6.2.0" />
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sarabun">
@@ -363,8 +363,9 @@
                     <div class="p6-kpi"><span>ยังไม่มีแผน PM</span><b id="p6-kpi-noplan">0</b></div>
                 </div>
                 <div class="p6-section-card p6-toolbar print:hidden">
-                    <input id="p6-search" type="search" oninput="renderPhase6Lifecycle()" placeholder="ค้นหารหัส ชื่ออุปกรณ์ หรือ Serial">
-                    <select id="p6-state-filter" onchange="renderPhase6Lifecycle()">
+                    <input id="p6-search" type="search" oninput="p6LifecycleFilterChanged()" placeholder="ค้นหารหัส ชื่ออุปกรณ์ หรือ Serial">
+                    <select id="p6-type-filter" onchange="p6LifecycleFilterChanged()"><option value="all">ชนิดอุปกรณ์ทั้งหมด</option></select>
+                    <select id="p6-state-filter" onchange="p6LifecycleFilterChanged()">
                         <option value="all">สถานะ PM ทั้งหมด</option>
                         <option value="OVERDUE">เกินกำหนด</option>
                         <option value="DUE_SOON">ใกล้ครบ 30 วัน</option>
@@ -1120,6 +1121,6 @@
     <script src="phase6.js?v=6.0.2"></script>
     <script src="phase6-mobile.js?v=6.1.0"></script>
     <script src="public-equipment-profile.js?v=6.1.0"></script>
-    <script src="phase6-enhance.js?v=6.2.3"></script>
+    <script src="phase6-enhance.js?v=6.2.4"></script>
 </body>
 </html>

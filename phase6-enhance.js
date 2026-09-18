@@ -1,4 +1,4 @@
-/* Phase 6.2.3 — PM baseline, checklist, meter history, plan editing */
+/* Phase 6.2.4 — PM baseline, checklist, meter history, plan editing */
 (function(){
   if (typeof p6InitFromUrl === 'function') {
     document.removeEventListener('DOMContentLoaded', p6InitFromUrl);
@@ -6,12 +6,41 @@
 
   const STATE_RANK={BASELINE_REQUIRED:6,OVERDUE:5,DUE_USAGE:4,DUE_SOON:3,OK:2,NO_PLAN:1};
   let phase6PlanCache=[];
+  let phase6Page=1;
+  const PHASE6_PAGE_SIZE=15;
 
   window.p6StateLabel=function(s){
     return ({BASELINE_REQUIRED:'ต้องบันทึก PM เริ่มต้น',OVERDUE:'เกินกำหนด PM',DUE_SOON:'ใกล้ครบกำหนด',DUE_USAGE:'ครบตามจำนวนครั้งใช้งาน',OK:'ปกติ',NO_PLAN:'ยังไม่มีแผน PM'})[s]||s||'-';
   };
   window.p6StateClass=function(s){
     return ({BASELINE_REQUIRED:'p6-badge p6-indigo',OVERDUE:'p6-badge p6-red',DUE_SOON:'p6-badge p6-orange',DUE_USAGE:'p6-badge p6-amber',OK:'p6-badge p6-green',NO_PLAN:'p6-badge p6-gray'})[s]||'p6-badge p6-gray';
+  };
+
+  function p6PopulateEquipmentTypeFilter(){
+    const sel=document.getElementById('p6-type-filter');if(!sel)return;
+    const current=sel.value||'all';
+    const types=[...new Set(phase6Items.map(x=>String(x.equipmentName||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+    sel.innerHTML='<option value="all">ชนิดอุปกรณ์ทั้งหมด</option>'+types.map(t=>`<option value="${p6Esc(t)}">${p6Esc(t)}</option>`).join('');
+    sel.value=types.includes(current)?current:'all';
+  }
+
+  window.p6LifecycleFilterChanged=function(){
+    phase6Page=1;
+    renderPhase6Lifecycle();
+  };
+
+  window.p6SetPage=function(page){
+    const q=(document.getElementById('p6-search')?.value||'').trim().toLowerCase();
+    const f=document.getElementById('p6-state-filter')?.value||'all';
+    const t=document.getElementById('p6-type-filter')?.value||'all';
+    const total=phase6Items.filter(x=>{
+      const hit=!q||[x.equipmentCode,x.equipmentName,x.serialNumber].some(v=>String(v||'').toLowerCase().includes(q));
+      return hit&&(f==='all'||x.maintenanceState===f)&&(t==='all'||x.equipmentName===t);
+    }).length;
+    const pages=Math.max(1,Math.ceil(total/PHASE6_PAGE_SIZE));
+    phase6Page=Math.max(1,Math.min(pages,Number(page)||1));
+    renderPhase6Lifecycle();
+    document.getElementById('phase6-equipment-list')?.scrollIntoView({behavior:'smooth',block:'start'});
   };
 
   window.loadPhase6Lifecycle=async function(force=false){
@@ -22,6 +51,8 @@
     const r=await p6Run('getEquipmentLifecycleDashboard');
     if(!r?.success){host.innerHTML=`<div class="p6-error">${p6Esc(r?.error||'โหลดข้อมูลไม่สำเร็จ')}</div>`;return;}
     phase6Items=r.items||[];
+    if(force)phase6Page=1;
+    p6PopulateEquipmentTypeFilter();
     const s=r.summary||{};
     const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=String(val??0);};
     set('p6-kpi-total',s.total);
@@ -37,19 +68,39 @@
     const host=document.getElementById('phase6-equipment-list');if(!host)return;
     const q=(document.getElementById('p6-search')?.value||'').trim().toLowerCase();
     const f=document.getElementById('p6-state-filter')?.value||'all';
+    const t=document.getElementById('p6-type-filter')?.value||'all';
     const rows=phase6Items.filter(x=>{
       const hit=!q||[x.equipmentCode,x.equipmentName,x.serialNumber].some(v=>String(v||'').toLowerCase().includes(q));
-      return hit&&(f==='all'||x.maintenanceState===f);
+      return hit&&(f==='all'||x.maintenanceState===f)&&(t==='all'||x.equipmentName===t);
     }).sort((a,b)=>(STATE_RANK[b.maintenanceState]||0)-(STATE_RANK[a.maintenanceState]||0)||String(a.nextMaintenanceDate||'9999-12-31').localeCompare(String(b.nextMaintenanceDate||'9999-12-31'))||String(a.equipmentCode||'').localeCompare(String(b.equipmentCode||'')));
-    if(!rows.length){host.innerHTML='<div class="p6-empty">ไม่พบอุปกรณ์ตามเงื่อนไข</div>';return;}
-    host.innerHTML=`<div class="p6-table-wrap"><table class="p6-table"><thead><tr><th>อุปกรณ์</th><th>สถานะคลัง</th><th>การใช้งาน</th><th>PM ล่าสุด / ถัดไป</th><th>สถานะ PM</th><th>ดำเนินการ</th></tr></thead><tbody>${rows.map(x=>`<tr>
-      <td><div class="p6-eq-name">${p6Esc(x.equipmentName)}</div><div class="p6-muted">${p6Esc(x.equipmentCode)}${x.serialNumber?` · ${p6Esc(x.serialNumber)}`:''}</div></td>
+
+    if(!rows.length){
+      phase6Page=1;
+      host.innerHTML='<div class="p6-empty">ไม่พบอุปกรณ์ตามเงื่อนไข</div>';
+      return;
+    }
+
+    const pages=Math.max(1,Math.ceil(rows.length/PHASE6_PAGE_SIZE));
+    if(phase6Page>pages)phase6Page=pages;
+    if(phase6Page<1)phase6Page=1;
+    const start=(phase6Page-1)*PHASE6_PAGE_SIZE;
+    const pageRows=rows.slice(start,start+PHASE6_PAGE_SIZE);
+    const pageButtons=[];
+    const from=Math.max(1,phase6Page-2),to=Math.min(pages,phase6Page+2);
+    if(from>1)pageButtons.push(`<button onclick="p6SetPage(1)">1</button>${from>2?'<span>…</span>':''}`);
+    for(let p=from;p<=to;p++)pageButtons.push(`<button class="${p===phase6Page?'active':''}" onclick="p6SetPage(${p})">${p}</button>`);
+    if(to<pages)pageButtons.push(`${to<pages-1?'<span>…</span>':''}<button onclick="p6SetPage(${pages})">${pages}</button>`);
+
+    host.innerHTML=`<div class="p6-list-summary"><span>แสดง <b>${start+1}–${Math.min(start+PHASE6_PAGE_SIZE,rows.length)}</b> จาก <b>${rows.length}</b> รายการ</span><span>หน้า ${phase6Page} / ${pages}</span></div>
+    <div class="p6-table-wrap"><table class="p6-table"><thead><tr><th>อุปกรณ์</th><th>สถานะคลัง</th><th>การใช้งาน</th><th>PM ล่าสุด / ถัดไป</th><th>สถานะ PM</th><th>ดำเนินการ</th></tr></thead><tbody>${pageRows.map(x=>`<tr>
+      <td><div class="p6-eq-name">${p6Esc(x.equipmentName)}</div><div class="p6-muted">${p6Esc(x.equipmentCode)}${x.serialNumber?` • ${p6Esc(x.serialNumber)}`:''}</div></td>
       <td>${p6Esc(x.status||'-')}</td>
       <td>${Number(x.borrowCount||0)} ครั้ง</td>
       <td><div>${x.lastMaintenanceDate?p6Date(x.lastMaintenanceDate):'ยังไม่มี'}</div><div class="p6-muted">ถัดไป ${x.nextMaintenanceDate?p6Date(x.nextMaintenanceDate):'-'}</div></td>
       <td><span class="${p6StateClass(x.maintenanceState)}">${p6Esc(p6StateLabel(x.maintenanceState))}</span></td>
-      <td><div class="p6-actions"><button onclick="openEquipmentHistory('${p6Esc(x.equipmentCode)}')"><i class="fa-solid fa-clock-rotate-left"></i> ประวัติ</button><button onclick="openMaintenanceForm('${p6Esc(x.equipmentCode)}')"><i class="fa-solid fa-screwdriver-wrench"></i> บำรุง</button><button onclick="openEquipmentLabel('${p6Esc(x.equipmentCode)}')"><i class="fa-solid fa-barcode"></i> สติ๊กเกอร์</button></div></td>
-    </tr>`).join('')}</tbody></table></div>`;
+      <td><div class="p6-actions"><button onclick="openEquipmentHistory('${p6Esc(x.equipmentCode)}')"><i class="fa-solid fa-clock-rotate-left"></i> ประวัติ</button><button onclick="openMaintenanceForm('${p6Esc(x.equipmentCode)}')"><i class="fa-solid fa-screwdriver-wrench"></i> บำรุง</button><button onclick="openEquipmentLabel('${p6Esc(x.equipmentCode)}')"><i class="fa-solid fa-barcode"></i> สติกเกอร์</button></div></td>
+    </tr>`).join('')}</tbody></table></div>
+    <div class="p6-pagination"><button onclick="p6SetPage(${phase6Page-1})" ${phase6Page===1?'disabled':''}><i class="fa-solid fa-chevron-left"></i> ก่อนหน้า</button><div class="p6-page-numbers">${pageButtons.join('')}</div><button onclick="p6SetPage(${phase6Page+1})" ${phase6Page===pages?'disabled':''}>ถัดไป <i class="fa-solid fa-chevron-right"></i></button></div>`;
   };
 
   window.openEquipmentHistory=async function(code){
