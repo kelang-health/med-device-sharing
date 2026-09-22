@@ -1595,6 +1595,103 @@ function exportToCSV(sheetName) {
     link.click();
 }
 
+let localBorrowPatientSync=null;
+let localBorrowPatientPopup=null;
+let localBorrowSyncCleanup=null;
+
+function setLocalBorrowSyncStatus(text){
+    const status=document.getElementById('borrow-patient-local-sync-status');
+    if(status)status.textContent=text;
+}
+window.invalidateLocalPatientSync=function(){
+    localBorrowPatientSync=null;
+    setLocalBorrowSyncStatus('กรอกเลขบัตร 13 หลัก หรือ PID เองได้');
+};
+
+window.syncBorrowPatientFromLocal=function(){
+    if(!state.isAdmin||!['ADMIN','STAFF'].includes(state.role))return;
+    const type=document.getElementById('borrow-patient-id-type');
+    const field=document.getElementById('borrow-patient-id-value');
+    const patientName=document.getElementById('borrow-patient');
+    const cid=String(field?.value||'').trim();
+    if(type?.value!=='CID'||!/^\d{13}$/.test(cid)){
+        Swal.fire('กรุณาระบุเลขบัตร 13 หลัก','เลือก “เลขบัตรประชาชน 13 หลัก” แล้วกรอกให้ครบก่อนกดซิงค์','info');
+        return;
+    }
+    if(localBorrowSyncCleanup)localBorrowSyncCleanup();
+    localBorrowPatientSync=null;
+    const nonceBytes=new Uint8Array(24);
+    crypto.getRandomValues(nonceBytes);
+    const nonce=Array.from(nonceBytes).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const popup=window.open('http://127.0.0.1:8765/integrations/med-device-sharing/pid-lookup',
+        'med-device-local-pid','popup=yes,width=570,height=650');
+    if(!popup){
+        Swal.fire('ไม่สามารถเปิด Local ได้','อนุญาตป๊อปอัปสำหรับเว็บไซต์นี้ แล้วลองอีกครั้ง หรือกรอก PID เอง','warning');
+        return;
+    }
+    localBorrowPatientPopup=popup;
+    setLocalBorrowSyncStatus('รอ Local OSM-PHC ยืนยันตัวผู้ป่วย…');
+    let finished=false;
+    const clear=()=>{
+        window.removeEventListener('message',listener);
+        clearTimeout(timer);
+        if(localBorrowSyncCleanup===clear)localBorrowSyncCleanup=null;
+        finished=true;
+    };
+    const listener=async event=>{
+        if(finished||event.source!==popup||event.origin!=='http://127.0.0.1:8765')return;
+        const data=event.data||{};
+        if(data.type==='MED_DEVICE_LOCAL_UNAVAILABLE'){
+            clear();
+            setLocalBorrowSyncStatus('Local ยังไม่พร้อม: ให้เข้าสู่ระบบ Local OSM-PHC ด้วยบัญชีผู้ดูแลแล้วลองซิงค์ใหม่ หรือกรอก PID เอง');
+            return;
+        }
+        if(data.type==='MED_DEVICE_LOCAL_READY'){
+            popup.postMessage({type:'MED_DEVICE_CID_LOOKUP',cid,nonce},'http://127.0.0.1:8765');
+            setLocalBorrowSyncStatus('Local กำลังค้นหาผู้ป่วย — โปรดยืนยันในหน้าต่าง Local');
+            return;
+        }
+        if(data.type!=='MED_DEVICE_PID_RESULT'||data.nonce!==nonce)return;
+        if(!/^\d{1,12}$/.test(String(data.pid||''))||
+           !/^[A-Za-z0-9_-]{1,30}$/.test(String(data.pcucodeperson||''))||
+           !String(data.patientName||'').trim())return;
+        clear();
+        if(type.value!=='CID'||field.value!==cid){
+            setLocalBorrowSyncStatus('เลขบัตรถูกเปลี่ยนระหว่างซิงค์ — ยกเลิกผลเดิม');
+            return;
+        }
+        const name=String(data.patientName).trim();
+        const prior=String(patientName?.value||'').trim();
+        if(prior&&prior.replace(/\s+/g,'')!==name.replace(/\s+/g,'')){
+            const ans=await Swal.fire({
+                title:'ชื่อผู้ป่วยไม่ตรงกัน',
+                text:'ชื่อที่กรอก: '+prior+' / Local JHCIS: '+name+' — ต้องการใช้ชื่อที่พบใน Local หรือไม่?',
+                icon:'warning',showCancelButton:true,
+                confirmButtonText:'ใช้ข้อมูลจาก Local',cancelButtonText:'ยกเลิก'
+            });
+            if(!ans.isConfirmed){
+                setLocalBorrowSyncStatus('ยกเลิกการซิงค์ — ไม่เปลี่ยนข้อมูลผู้ป่วย');
+                return;
+            }
+        }
+        // Replace CID in the form with the scoped PID; no full CID in the cloud loan payload.
+        type.value='PID';
+        field.value=String(data.pid);
+        patientName.value=name;
+        localBorrowPatientSync={
+            pid:String(data.pid),pcucodeperson:String(data.pcucodeperson),patientName:name
+        };
+        setLocalBorrowSyncStatus('ซิงค์แล้ว: PID '+data.pid+' / '+data.pcucodeperson+' — ตรวจสอบชื่อและบันทึกการยืมได้');
+    };
+    const timer=setTimeout(()=>{
+        if(finished)return;
+        clear();
+        setLocalBorrowSyncStatus('Local ไม่ตอบสนอง — เปิด Local OSM-PHC เข้าสู่ระบบผู้ดูแล แล้วกดซิงค์ใหม่ หรือกรอก PID เอง');
+    },90000);
+    window.addEventListener('message',listener);
+    localBorrowSyncCleanup=clear;
+};
+
 async function submitBorrowForm(event) {
     event.preventDefault();
     const isEditing = !!editingBorrowId;
@@ -1631,6 +1728,8 @@ async function submitBorrowForm(event) {
         PatientName: patientName,
         PatientIdentifierType: patientId ? patientType : undefined,
         PatientIdentifier: patientId || undefined,
+        PatientPCU: localBorrowPatientSync && localBorrowPatientSync.pid===patientId &&
+          localBorrowPatientSync.patientName===patientName ? localBorrowPatientSync.pcucodeperson : undefined,
         BorrowerName: document.getElementById('borrow-name').value || document.getElementById('borrow-patient').value,
         CitizenID: document.getElementById('borrow-citizen').value,
         Phone: document.getElementById('borrow-phone').value,
@@ -1820,6 +1919,8 @@ async function logout() {
 function openLoginModal() { document.getElementById('modal-login').classList.add('active'); }
 function closeLoginModal() { document.getElementById('modal-login').classList.remove('active'); }
 function openBorrowForm() {
+    if(localBorrowSyncCleanup)localBorrowSyncCleanup();
+    localBorrowPatientSync=null;
     editingBorrowId = null;
     existingBorrowImageIds = [];
     borrowPhotos = [];
@@ -1832,6 +1933,8 @@ function openBorrowForm() {
     switchTab('borrow-form');
 }
 function cancelBorrowForm() {
+    if(localBorrowSyncCleanup)localBorrowSyncCleanup();
+    localBorrowPatientSync=null;
     const patientRefInput=document.getElementById('borrow-patient-id-value');
     if(patientRefInput)patientRefInput.value='';
     editingBorrowId = null;
@@ -1843,6 +1946,8 @@ function cancelBorrowForm() {
 
 // ✏️ เปิดฟอร์มเดิมขึ้นมาแก้ไข พร้อมดึงข้อมูล/รูปภาพเดิมมาแสดงไว้ล่วงหน้า สำหรับกรณีบันทึกผิดแล้วต้องการแก้ไข
 function editBorrowRecord(entryId) {
+    if(localBorrowSyncCleanup)localBorrowSyncCleanup();
+    localBorrowPatientSync=null;
     const record = state.data.find(r => (r.EntryID || r[0]) === entryId);
     if (!record) return;
 

@@ -851,7 +851,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block font-bold text-gray-500 mb-1">ชื่อ-นามสกุล ผู้ป่วยขอยืม</label>
-                        <input type="text" id="borrow-patient" placeholder="ชื่อ–สกุลผู้ป่วยที่ใช้อุปกรณ์จริง"  class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
+                        <input type="text" id="borrow-patient" oninput="invalidateLocalPatientSync()" placeholder="ชื่อ–สกุลผู้ป่วยที่ใช้อุปกรณ์จริง"  class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
                     </div>
                     <div>
                         <label class="block font-bold text-gray-500 mb-1">ชื่อผู้ทำสัญญาแทน (กรณีญาติดำเนินการแทน)</label>
@@ -861,13 +861,22 @@
                 <div id="borrow-patient-reference" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
                   <label class="block text-sm font-bold text-indigo-900 mb-2">เลขอ้างอิงผู้ป่วยที่ใช้อุปกรณ์ (กรอกอย่างใดอย่างหนึ่ง)</label>
                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <select id="borrow-patient-id-type" class="border border-indigo-200 px-3 py-2 rounded-xl bg-white">
+                    <select id="borrow-patient-id-type" onchange="invalidateLocalPatientSync()" class="border border-indigo-200 px-3 py-2 rounded-xl bg-white">
                       <option value="CID">เลขบัตรประชาชน 13 หลัก</option>
                       <option value="PID">PID ที่เจ้าหน้าที่ค้นมาเอง</option>
                     </select>
                     <input id="borrow-patient-id-value" type="text" inputmode="numeric" maxlength="13" autocomplete="off"
                       class="sm:col-span-2 border border-indigo-200 px-3 py-2 rounded-xl bg-white"
-                      placeholder="เลขบัตร 13 หลัก หรือ PID" />
+                      placeholder="เลขบัตร 13 หลัก หรือ PID" oninput="invalidateLocalPatientSync()" />
+                  </div>
+                  <div class="flex items-center gap-2 mt-2 flex-wrap">
+                    <button id="borrow-patient-local-sync" type="button" onclick="syncBorrowPatientFromLocal()"
+                      class="rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white">
+                      ซิงค์เลข 13 หลัก → PID (Local OSM-PHC)
+                    </button>
+                    <span id="borrow-patient-local-sync-status" role="status" aria-live="polite" class="text-xs text-indigo-800">
+                      ใช้บนเครื่องที่เปิด Local OSM-PHC และเข้าสู่ระบบผู้ดูแลแล้ว
+                    </span>
                   </div>
                   <p class="text-xs text-gray-500 mt-1">ระบุชื่อผู้ป่วยและเลขอ้างอิงตามข้อมูลที่ตรวจพบ ไม่ต้องออกรหัสยืนยันจาก JHCIS</p>
                 </div>
@@ -1130,7 +1139,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=6.2.7"></script>
+    <script src="script.js?v=6.2.8"></script>
     <script src="phase6.js?v=6.0.2"></script>
     <script src="phase6-mobile.js?v=6.1.0"></script>
     <script src="public-equipment-profile.js?v=6.1.0"></script>
