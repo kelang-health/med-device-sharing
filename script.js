@@ -695,9 +695,9 @@ async function loadVerifiedPatientPidForPage(items){
     }
     missing.forEach(id=>verifiedPatientPidCache.set(id,null));
     for(const item of response.data||[]){
-        const id=String(item.entryId||''),pid=String(item.pid||'');
-        if(missing.includes(id)&&/^\d{1,15}$/.test(pid))
-            verifiedPatientPidCache.set(id,{pid,pcucodeperson:String(item.pcucodeperson||'')});
+        const id=String(item.entryId||''),label=String(item.referenceLabel||'');
+        if(missing.includes(id)&&label)
+            verifiedPatientPidCache.set(id,{referenceLabel:label});
     }
     renderVerifiedPatientPidCells();
 }
@@ -705,7 +705,7 @@ function renderVerifiedPatientPidCells(){
     if(!state.isAdmin||state.currentTab!=='borrow')return;
     document.querySelectorAll('[data-jhcis-patient-pid-entry]').forEach(el=>{
         const rec=verifiedPatientPidCache.get(el.getAttribute('data-jhcis-patient-pid-entry')||'');
-        el.textContent=rec?'PID '+rec.pid+' / '+rec.pcucodeperson:'ยังไม่ผูกผู้ป่วย';
+        el.textContent=rec?rec.referenceLabel:'ยังไม่ระบุเลขผู้ป่วย';
     });
 }
 
@@ -755,7 +755,7 @@ function renderAdminBorrowContainer() {
                     <tr>
                         <th class="p-3">รหัสพัสดุ</th>
                         <th class="p-3">ชื่อผู้ยืม / ผู้ป่วย</th>
-                        <th class="p-3">PID ผู้ป่วย (JHCIS)</th>
+                        <th class="p-3">เลขอ้างอิงผู้ป่วย</th>
                         <th class="p-3">PID ผู้ยืม (JHCIS)</th>
                         <th class="p-3">เลขบัตรประจำตัวประชาชน</th>
                         <th class="p-3">ชุมชน/หมู่บ้าน</th>
@@ -1595,36 +1595,6 @@ function exportToCSV(sheetName) {
     link.click();
 }
 
-let verifiedBorrowPatient=null;
-function invalidateVerifiedBorrowPatient(){
-    verifiedBorrowPatient=null;
-    const status=document.getElementById('borrow-patient-verification-status');
-    if(status)status.textContent='รหัสยังไม่ผ่านการตรวจสอบ';
-    const name=document.getElementById('borrow-patient');
-    if(name && !editingBorrowId){name.value='';name.readOnly=true;}
-}
-async function verifyBorrowPatientCode(){
-    if(!state.isAdmin||!['ADMIN','STAFF'].includes(state.role))return;
-    const code=String(document.getElementById('borrow-patient-ticket')?.value||'').trim();
-    invalidateVerifiedBorrowPatient();
-    if(!/^[A-Za-z0-9_-]{20,64}$/.test(code)){
-        Swal.fire('รหัสไม่ถูกต้อง','กรุณาระบุรหัสยืนยันจาก JHCIS ที่เครื่อง Local','warning');return;
-    }
-    const response=await run('verifyPatientJHCISTicket',{PatientVerificationCode:code});
-    if(!response?.success){
-        Swal.fire('ยืนยันผู้ป่วยไม่ได้',response?.error||'โปรดตรวจสอบรหัสอีกครั้ง','warning');return;
-    }
-    const patient=response.patient||{};
-    if(!/^\d{1,15}$/.test(String(patient.pid||''))||!patient.patientName||!patient.pcucodeperson){
-        Swal.fire('ข้อมูลผู้ป่วยไม่ครบ','โปรดออกคำขอยืนยันใหม่จาก JHCIS','error');return;
-    }
-    verifiedBorrowPatient={code,patientName:String(patient.patientName),pid:String(patient.pid),pcucodeperson:String(patient.pcucodeperson)};
-    const input=document.getElementById('borrow-patient');
-    if(input){input.value=verifiedBorrowPatient.patientName;input.readOnly=true;}
-    const status=document.getElementById('borrow-patient-verification-status');
-    if(status)status.textContent='ยืนยันแล้ว: '+verifiedBorrowPatient.patientName+' • PID '+verifiedBorrowPatient.pid+' • หน่วยบริการ '+verifiedBorrowPatient.pcucodeperson;
-}
-
 async function submitBorrowForm(event) {
     event.preventDefault();
     const isEditing = !!editingBorrowId;
@@ -1637,13 +1607,15 @@ async function submitBorrowForm(event) {
         Swal.fire('กรุณาตรวจเลขประชาชน', 'หากต้องการแก้เลขประชาชน กรุณากรอกให้ครบ 13 หลัก หรือเว้นว่างเพื่อคงข้อมูลเดิมแบบปกปิด', 'warning');
         return;
     }
-    if(!isEditing){
-        const code=String(document.getElementById('borrow-patient-ticket')?.value||'').trim();
-        if(!verifiedBorrowPatient||verifiedBorrowPatient.code!==code||
-           document.getElementById('borrow-patient').value!==verifiedBorrowPatient.patientName){
-            Swal.fire('ต้องยืนยันผู้ป่วย','กรุณาตรวจสอบ PID/ชื่อผู้ป่วยผ่านรหัสยืนยันจาก JHCIS ก่อนบันทึกการยืม','warning');
-            return;
-        }
+    const patientName=String(document.getElementById('borrow-patient')?.value||'').trim();
+    const patientType=String(document.getElementById('borrow-patient-id-type')?.value||'').trim();
+    const patientId=String(document.getElementById('borrow-patient-id-value')?.value||'').trim();
+    if(patientName.length<2){
+        Swal.fire('กรุณาระบุผู้ป่วย','กรุณาระบุชื่อและนามสกุลผู้ป่วยที่ใช้อุปกรณ์','warning');return;
+    }
+    if((!isEditing||patientId) &&
+       (patientType==='CID'?!/^\d{13}$/.test(patientId):patientType==='PID'?!/^\d{1,12}$/.test(patientId):true)){
+        Swal.fire('กรุณาตรวจเลขผู้ป่วย',patientType==='PID'?'PID ต้องเป็นตัวเลขไม่เกิน 12 หลัก':'กรุณากรอกเลขบัตรผู้ป่วยให้ครบ 13 หลัก','warning');return;
     }
     const hasPhotos = borrowPhotos.length > 0;
     Swal.fire({
@@ -1656,8 +1628,9 @@ async function submitBorrowForm(event) {
     const payload = {
         EquipmentID: document.getElementById('borrow-eq-id').value,
         SerialNumber: document.getElementById('borrow-serial').value,
-        PatientName: document.getElementById('borrow-patient').value,
-        PatientVerificationCode: isEditing ? undefined : verifiedBorrowPatient.code,
+        PatientName: patientName,
+        PatientIdentifierType: patientId ? patientType : undefined,
+        PatientIdentifier: patientId || undefined,
         BorrowerName: document.getElementById('borrow-name').value || document.getElementById('borrow-patient').value,
         CitizenID: document.getElementById('borrow-citizen').value,
         Phone: document.getElementById('borrow-phone').value,
@@ -1679,6 +1652,8 @@ async function submitBorrowForm(event) {
     try {
         const res = await run(isEditing ? 'updateBorrow' : 'addBorrow', payload);
         if (res.success) {
+            verifiedPatientPidCache.clear();
+            verifiedPatientPidRequest++;
             if(res.patientLinkPending){
                 Swal.fire('บันทึกรายการแล้ว แต่การผูก PID ผู้ป่วยยังไม่สมบูรณ์',res.warning||'โปรดแจ้งผู้ดูแลตรวจสอบรหัสรายการก่อนนำอุปกรณ์ออก','warning');
                 cancelBorrowForm(); await loadSystemData(); return;
@@ -1845,11 +1820,6 @@ async function logout() {
 function openLoginModal() { document.getElementById('modal-login').classList.add('active'); }
 function closeLoginModal() { document.getElementById('modal-login').classList.remove('active'); }
 function openBorrowForm() {
-    verifiedBorrowPatient=null;
-    const verifyBox=document.getElementById('borrow-patient-verification');
-    if(verifyBox)verifyBox.classList.remove('hidden');
-    const patientNameInput=document.getElementById('borrow-patient');
-    if(patientNameInput)patientNameInput.readOnly=true;
     editingBorrowId = null;
     existingBorrowImageIds = [];
     borrowPhotos = [];
@@ -1862,7 +1832,8 @@ function openBorrowForm() {
     switchTab('borrow-form');
 }
 function cancelBorrowForm() {
-    verifiedBorrowPatient=null;
+    const patientRefInput=document.getElementById('borrow-patient-id-value');
+    if(patientRefInput)patientRefInput.value='';
     editingBorrowId = null;
     existingBorrowImageIds = [];
     borrowPhotos = [];
@@ -1872,11 +1843,6 @@ function cancelBorrowForm() {
 
 // ✏️ เปิดฟอร์มเดิมขึ้นมาแก้ไข พร้อมดึงข้อมูล/รูปภาพเดิมมาแสดงไว้ล่วงหน้า สำหรับกรณีบันทึกผิดแล้วต้องการแก้ไข
 function editBorrowRecord(entryId) {
-    verifiedBorrowPatient=null;
-    const verifyBox=document.getElementById('borrow-patient-verification');
-    if(verifyBox)verifyBox.classList.add('hidden');
-    const patientNameInput=document.getElementById('borrow-patient');
-    if(patientNameInput)patientNameInput.readOnly=false;
     const record = state.data.find(r => (r.EntryID || r[0]) === entryId);
     if (!record) return;
 
@@ -1890,6 +1856,7 @@ function editBorrowRecord(entryId) {
     document.getElementById('borrow-eq-id').value = record.EquipmentID || record[5] || '';
     document.getElementById('borrow-serial').value = record.SerialNumber || record[6] || '';
     document.getElementById('borrow-patient').value = record.PatientName || record[13] || '';
+    document.getElementById('borrow-patient-id-value').value='';
     document.getElementById('borrow-name').value = record.BorrowerName || record[1] || '';
     { const cv=String(record.CitizenID || record[2] || ''); document.getElementById('borrow-citizen').value = /^\d{13}$/.test(cv) ? cv : ''; }
     document.getElementById('borrow-phone').value = record.Phone || record[12] || '';

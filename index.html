@@ -851,22 +851,26 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block font-bold text-gray-500 mb-1">ชื่อ-นามสกุล ผู้ป่วยขอยืม</label>
-                        <input type="text" id="borrow-patient" readonly placeholder="ตรวจสอบผู้ป่วยจาก JHCIS ก่อนบันทึกการยืม"  class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
+                        <input type="text" id="borrow-patient" placeholder="ชื่อ–สกุลผู้ป่วยที่ใช้อุปกรณ์จริง"  class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" required />
                     </div>
                     <div>
                         <label class="block font-bold text-gray-500 mb-1">ชื่อผู้ทำสัญญาแทน (กรณีญาติดำเนินการแทน)</label>
                         <input type="text" id="borrow-name" class="w-full border border-gray-200 px-3 py-2 rounded-xl focus:outline-none" placeholder="ระบุชื่อญาติผู้ทำรายการแทน" />
                     </div>
                 </div>
-                <div id="borrow-patient-verification" class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2">
-  <label for="borrow-patient-ticket" class="block text-sm font-bold text-indigo-900">ผู้ป่วยที่ใช้อุปกรณ์จริง — ยืนยันด้วย JHCIS (บังคับสำหรับรายการยืมใหม่)</label>
-  <p class="text-xs text-gray-600">ใช้เลขบัตรผู้ป่วยตรวจสอบในเครื่อง Local เพื่อออกรหัสยืนยันชั่วคราว จากนั้นกรอกรหัสที่นี่ ระบบจะนำชื่อและ PID จาก JHCIS มาใช้ผูกกับรายการยืม โดยไม่ส่งเลขบัตร 13 หลักของผู้ป่วยขึ้น Cloud</p>
-  <div class="flex flex-col sm:flex-row gap-2">
-    <input type="text" id="borrow-patient-ticket" autocomplete="off" oninput="invalidateVerifiedBorrowPatient()" placeholder="วางรหัสยืนยันผู้ป่วยจาก Local JHCIS" class="w-full border border-indigo-200 px-3 py-2 rounded-xl" maxlength="64">
-    <button type="button" onclick="verifyBorrowPatientCode()" class="rounded-xl px-4 py-2 bg-indigo-700 text-white font-bold whitespace-nowrap">ตรวจสอบผู้ป่วย</button>
-  </div>
-  <div id="borrow-patient-verification-status" role="status" class="text-xs text-indigo-800">ยังไม่ได้ยืนยัน PID ของผู้ป่วย</div>
-</div>
+                <div id="borrow-patient-reference" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+                  <label class="block text-sm font-bold text-indigo-900 mb-2">เลขอ้างอิงผู้ป่วยที่ใช้อุปกรณ์ (กรอกอย่างใดอย่างหนึ่ง)</label>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <select id="borrow-patient-id-type" class="border border-indigo-200 px-3 py-2 rounded-xl bg-white">
+                      <option value="CID">เลขบัตรประชาชน 13 หลัก</option>
+                      <option value="PID">PID ที่เจ้าหน้าที่ค้นมาเอง</option>
+                    </select>
+                    <input id="borrow-patient-id-value" type="text" inputmode="numeric" maxlength="13" autocomplete="off"
+                      class="sm:col-span-2 border border-indigo-200 px-3 py-2 rounded-xl bg-white"
+                      placeholder="เลขบัตร 13 หลัก หรือ PID" />
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1">ระบุชื่อผู้ป่วยและเลขอ้างอิงตามข้อมูลที่ตรวจพบ ไม่ต้องออกรหัสยืนยันจาก JHCIS</p>
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block font-bold text-gray-500 mb-1">เลขบัตรประชาชนของผู้ยืม/ผู้รับผิดชอบ (ถ้ามี)</label>
@@ -1126,7 +1130,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=6.2.6"></script>
+    <script src="script.js?v=6.2.7"></script>
     <script src="phase6.js?v=6.0.2"></script>
     <script src="phase6-mobile.js?v=6.1.0"></script>
     <script src="public-equipment-profile.js?v=6.1.0"></script>
