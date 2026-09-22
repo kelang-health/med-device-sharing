@@ -48,6 +48,8 @@ function migrateLegacyStorage() {
 }
 
 function clearAuthSession() {
+    verifiedBorrowPidCache.clear();
+    verifiedBorrowPidRequest++;
     [STORAGE_KEYS.token, STORAGE_KEYS.refreshToken, STORAGE_KEYS.adminId, STORAGE_KEYS.adminName, 'adminToken', 'adminId', 'adminName']
         .forEach(k => localStorage.removeItem(k));
     state.isAdmin = false;
@@ -86,6 +88,8 @@ let state = {
     currentTab: 'dashboard'
 };
 // ตัวแปรควบคุมระบบการแบ่งหน้าแสดงผลทั้ง 3 ส่วนหลัก (หน้าละ 20 แถว)
+const verifiedBorrowPidCache=new Map();
+let verifiedBorrowPidRequest=0;
 let publicCurrentPage = 1;
 let equipCurrentPage = 1;
 let trackingCurrentPage = 1;
@@ -635,6 +639,44 @@ function renderBorrowTable() {
 }
 
 // ✅ เพิ่มส่วนสำคัญ: ฟังก์ชันจัดทำระบบตารางแบบแบ่งเพจ สืบคัน คัดกรอง และประมวลผลคำสั่งพิมพ์หน้าแอดมินงานยืมคืน
+window.copyBorrowPidEntryId=async function(entryId){
+    if(!state.isAdmin||!['ADMIN','STAFF'].includes(state.role)||state.currentTab!=='borrow')return;
+    const id=String(entryId||'');
+    try {await navigator.clipboard.writeText(id);
+        Swal.fire({icon:'success',title:'คัดลอกรหัสรายการแล้ว',text:'นำรหัสไปยืนยัน PID จาก JHCIS ที่เครื่อง Local',timer:1900,showConfirmButton:false});
+    } catch(_) {Swal.fire({title:'รหัสรายการ',text:id,confirmButtonText:'ปิด'});}
+};
+
+async function loadVerifiedBorrowPidForPage(items){
+    if(!state.isAdmin||!['ADMIN','STAFF'].includes(state.role)||state.currentTab!=='borrow')return;
+    const ids=[...new Set(items.map(r=>String(r.EntryID||r[0]||'')).filter(Boolean))].slice(0,10);
+    const missing=ids.filter(id=>!verifiedBorrowPidCache.has(id));
+    if(!missing.length){renderVerifiedBorrowPidCells();return;}
+    const requestId=++verifiedBorrowPidRequest;
+    const response=await run('getVerifiedBorrowerPids',{entryIds:missing});
+    if(requestId!==verifiedBorrowPidRequest||!state.isAdmin||state.currentTab!=='borrow')return;
+    if(!response?.success){
+        document.querySelectorAll('[data-jhcis-pid-entry]').forEach(cell=>{cell.textContent='ตรวจสอบไม่ได้';});
+        return;
+    }
+    missing.forEach(id=>verifiedBorrowPidCache.set(id,null));
+    for(const rec of response.data||[]){
+        const id=String(rec.entryId||''),pid=String(rec.pid||'');
+        if(missing.includes(id)&&/^\d{1,15}$/.test(pid))verifiedBorrowPidCache.set(id,pid);
+    }
+    renderVerifiedBorrowPidCells();
+}
+
+function renderVerifiedBorrowPidCells(){
+    if(!state.isAdmin||state.currentTab!=='borrow')return;
+    document.querySelectorAll('[data-jhcis-pid-entry]').forEach(cell=>{
+        const id=cell.getAttribute('data-jhcis-pid-entry')||'';
+        const pid=verifiedBorrowPidCache.get(id);
+        cell.textContent=pid?pid:'รอยืนยัน JHCIS';
+        cell.title=pid?'PID ที่ตรวจยืนยันกับ JHCIS แล้ว':'ยังไม่มีการจับคู่ผู้ยืมกับ JHCIS ที่ผ่านการยืนยัน';
+    });
+}
+
 function renderAdminBorrowContainer() {
     const container = document.getElementById('borrow-admin-container');
     if (!container) return;
@@ -680,7 +722,8 @@ function renderAdminBorrowContainer() {
                 <thead class="bg-gray-50 text-gray-600 text-xs font-bold uppercase">
                     <tr>
                         <th class="p-3">รหัสพัสดุ</th>
-                        <th class="p-3">ชื่อผู้ป่วย / ผู้ยืม</th>
+                        <th class="p-3">ชื่อผู้ยืม / ผู้ป่วย</th>
+                        <th class="p-3">PID ผู้ยืม (JHCIS)</th>
                         <th class="p-3">เลขบัตรประจำตัวประชาชน</th>
                         <th class="p-3">ชุมชน/หมู่บ้าน</th>
                         <th class="p-3">วันที่ยืม</th>
@@ -693,12 +736,13 @@ function renderAdminBorrowContainer() {
     `;
 
     if (paginatedItems.length === 0) {
-        tableStructureHtml += `<tr><td colspan="8" class="text-center p-6 text-gray-400">❌ ไม่พบประวัติผลลัพธ์ที่สอดคล้องกับตัวกรองหรือคำค้นหาของคุณ</td></tr>`;
+        tableStructureHtml += `<tr><td colspan="9" class="text-center p-6 text-gray-400">❌ ไม่พบประวัติผลลัพธ์ที่สอดคล้องกับตัวกรองหรือคำค้นหาของคุณ</td></tr>`;
     } else {
         paginatedItems.forEach(item => {
             const entryId = item.EntryID || item[0];
             const eqId = item.EquipmentID || item[5] || '-';
-            const patientName = item.PatientName || item.BorrowerName || item[13] || item[1] || '-';
+            const borrowerDisplay = item.BorrowerName || item[1] || item.PatientName || item[13] || '-';
+            const patientName = item.PatientName || item[13] || '';
             const citizenId = item.CitizenID || item[2] || '-';
             const community = item.Community || item[4] || '-';
             const rawDate = item.BorrowDate || item[9];
@@ -734,7 +778,8 @@ function renderAdminBorrowContainer() {
             tableStructureHtml += `
                 <tr class="hover:bg-gray-50/70 transition-all duration-100">
                     <td class="p-3 font-semibold text-gray-700">${escapeHtml(eqId)}</td>
-                    <td class="p-3 font-medium">${escapeHtml(patientName)}</td>
+                    <td class="p-3 font-medium"><div>${escapeHtml(borrowerDisplay)}</div>${patientName && patientName !== borrowerDisplay ? `<div class="text-[10px] text-gray-400">ผู้ป่วย: ${escapeHtml(patientName)}</div>` : ``}</td>
+                    <td class="p-3 font-mono whitespace-nowrap text-indigo-700"><span data-jhcis-pid-entry="${escapeHtml(String(entryId))}">รอตรวจสอบ</span><button type="button" class="block text-[10px] underline text-gray-500 mt-1 print:hidden" onclick="copyBorrowPidEntryId('${escapeJsSingleQuoted(entryId)}')">คัดลอกรหัสรายการ</button></td>
                     <td class="p-3 font-mono">${escapeHtml(citizenId)}</td>
                     <td class="p-3">${escapeHtml(community)}</td>
                     <td class="p-3">${dateFormatted}</td>
@@ -751,6 +796,7 @@ function renderAdminBorrowContainer() {
 
     // เรนเดอร์จัดโครงสร้างชุดปุ่มเลขหน้าเพจควบคุม (Pagination Elements)
     renderPaginationControlsBar(totalPages);
+    if(state.currentTab==='borrow')void loadVerifiedBorrowPidForPage(paginatedItems);
 }
 
 function renderPaginationControlsBar(totalPages) {
@@ -1227,6 +1273,9 @@ function switchTab(tabId) {
 
     if (tabId === 'map') {
         setTimeout(() => { initLeafletGISMap(); }, 200);
+    }
+    if (tabId === 'borrow' && state.isAdmin) {
+        renderAdminBorrowContainer();
     }
     if (tabId === 'tracking') {
         renderTrackingSection();
