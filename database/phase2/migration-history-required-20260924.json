@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "source": "Supabase migration history metadata only; no SQL or data",
+  "snapshot_date": "2026-09-24",
+  "project_ref": "txjuiaiwffsxfcrxpkvd",
+  "required": [
+    {
+      "version": "20260914222240",
+      "name": "phase1_med_device_foundation"
+    },
+    {
+      "version": "20260914222510",
+      "name": "phase1_security_performance_hardening_v2"
+    },
+    {
+      "version": "20260914223032",
+      "name": "phase2_pii_minimization"
+    },
+    {
+      "version": "20260914223615",
+      "name": "phase2_import_staff_equipment"
+    },
+    {
+      "version": "20260914223751",
+      "name": "phase2_import_borrowers_masked_ids"
+    },
+    {
+      "version": "20260914223949",
+      "name": "phase2_import_borrow_logs_01"
+    },
+    {
+      "version": "20260914224121",
+      "name": "phase2_import_borrow_logs_02"
+    },
+    {
+      "version": "20260914224202",
+      "name": "phase2_import_borrow_logs_03"
+    },
+    {
+      "version": "20260914224245",
+      "name": "phase2_import_borrow_logs_04"
+    },
+    {
+      "version": "20260914224423",
+      "name": "phase2_import_extensions"
+    },
+    {
+      "version": "20260914224433",
+      "name": "phase2_import_maintenance"
+    },
+    {
+      "version": "20260914224446",
+      "name": "phase2_import_public_content"
+    },
+    {
+      "version": "20260914224529",
+      "name": "phase2_import_audit_01"
+    },
+    {
+      "version": "20260914224603",
+      "name": "phase2_import_audit_02"
+    },
+    {
+      "version": "20260914224639",
+      "name": "phase2_import_audit_03"
+    },
+    {
+      "version": "20260914224707",
+      "name": "phase2_import_audit_04"
+    },
+    {
+      "version": "20260914224722",
+      "name": "phase2_fix_audit_snapshot"
+    },
+    {
+      "version": "20260914224834",
+      "name": "phase2_migration_summary"
+    },
+    {
+      "version": "20260914225225",
+      "name": "phase2_2_auth_evidence_foundation"
+    },
+    {
+      "version": "20260914231246",
+      "name": "phase2_image_migration_queue_hardening"
+    },
+    {
+      "version": "20260914231255",
+      "name": "phase2_borrow_evidence_migration_support"
+    },
+    {
+      "version": "20260914231305",
+      "name": "phase2_evidence_migration_audit"
+    },
+    {
+      "version": "20260914231324",
+      "name": "phase2_evidence_metadata_index"
+    },
+    {
+      "version": "20260915000142",
+      "name": "phase3_core_integrity_constraints"
+    },
+    {
+      "version": "20260915013720",
+      "name": "enable_pg_net_for_controlled_migration"
+    },
+    {
+      "version": "20260915014014",
+      "name": "remove_temporary_pg_net_after_user1_migration"
+    },
+    {
+      "version": "20260915025838",
+      "name": "phase5_full_parity_foundation_v51"
+    },
+    {
+      "version": "20260915025920",
+      "name": "phase5_full_parity_support_tables_v51"
+    },
+    {
+      "version": "20260915031122",
+      "name": "phase5_scheduler_timeout_v51"
+    },
+    {
+      "version": "20260915033359",
+      "name": "harden_image_migration_queue_rls"
+    },
+    {
+      "version": "20260915033856",
+      "name": "index_backup_runs_created_by"
+    },
+    {
+      "version": "20260915034345",
+      "name": "explicit_deny_policies_internal_tables"
+    },
+    {
+      "version": "20260915035845",
+      "name": "add_system_health_monitoring_v512"
+    },
+    {
+      "version": "20260915220751",
+      "name": "line_notification_name_lookup_v520_marker"
+    },
+    {
+      "version": "20260915220802",
+      "name": "line_notification_name_lookup_v520_marker"
+    },
+    {
+      "version": "20260915220812",
+      "name": "line_notification_name_lookup_v520_marker"
+    },
+    {
+      "version": "20260915220823",
+      "name": "line_notification_name_lookup_v520_marker"
+    },
+    {
+      "version": "20260915220833",
+      "name": "line_notification_name_lookup_v520_marker"
+    },
+    {
+      "version": "20260915220841",
+      "name": "line_notification_name_lookup_v520_marker"
+    },
+    {
+      "version": "20260915220850",
+      "name": "line_notification_name_lookup_v520_marker"
+    },
+    {
+      "version": "20260915220902",
+      "name": "line_notification_name_lookup_v520_marker"
+    },
+    {
+      "version": "20260915220917",
+      "name": "line_notification_name_lookup_v520_marker"
+    },
+    {
+      "version": "20260916235607",
+      "name": "phase6_equipment_lifecycle_maintenance_labels"
+    },
+    {
+      "version": "20260917003844",
+      "name": "phase6_meter_readings_and_due_indexes"
+    },
+    {
+      "version": "20260917021718",
+      "name": "phase6_security_and_fk_index_hardening"
+    },
+    {
+      "version": "20260917085756",
+      "name": "phase6_maintenance_plan_rls_policy_cleanup"
+    }
+  ]
+}
