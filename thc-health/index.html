@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b684f">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://txjuiaiwffsxfcrxpkvd.supabase.co; img-src 'self' https://kelang-health.github.io data:; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'">
+  <link rel="icon" href="https://kelang-health.github.io/med-device-sharing/assets/logo.png?v=4.2.4" type="image/png">
+  <meta name="description" content="เว็บไซต์ศูนย์บริการสาธารณสุขบ้านโทกหัวช้าง เทศบาลเมืองเขลางค์นคร">
+  <title>ศูนย์บริการสาธารณสุขบ้านโทกหัวช้าง</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">ข้ามไปยังเนื้อหาหลัก</a>
+
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a class="brand" href="#top">
+        <img src="https://kelang-health.github.io/med-device-sharing/assets/logo.png?v=4.2.4" alt="ตราเทศบาลเมืองเขลางค์นคร">
+        <div>
+          <strong data-site-unit>ศูนย์บริการสาธารณสุขบ้านโทกหัวช้าง</strong>
+          <span data-site-municipality>เทศบาลเมืองเขลางค์นคร</span>
+        </div>
+      </a>
+      <nav class="nav" aria-label="เมนูหลัก">
+        <a href="#services">บริการ</a>
+        <a href="#news">ข่าวสาร</a>
+        <a href="#knowledge">ความรู้สุขภาพ</a>
+        <a href="#about">เกี่ยวกับเรา</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div>
+          <span class="eyebrow">PUBLIC HEALTH SERVICE</span>
+          <h1>บริการสุขภาพใกล้บ้าน<br>เข้าถึงง่ายในหน้าเดียว</h1>
+          <p class="lead" data-site-tagline>บริการสุขภาพใกล้บ้าน เข้าถึงง่ายในหน้าเดียว</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" id="oneStopHero" href="#">เข้าสู่ One Stop Service</a>
+            <a class="btn btn-secondary" href="#services">ดูบริการทั้งหมด</a>
+          </div>
+        </div>
+        <aside class="status-panel" aria-label="สถานะบริการ">
+          <div class="status-row">
+            <span class="status-dot status-dot-online"></span>
+            <div><strong id="systemStatus">กำลังตรวจระบบ</strong><small id="systemDetail">ตรวจสถานะ One Stop Service</small></div>
+          </div>
+          <div class="status-row">
+            <span class="status-dot status-dot-office"></span>
+            <div><strong id="officeStatus">กำลังตรวจเวลาทำการ</strong><small id="officeDetail">สถานะนี้แยกจากสถานะระบบ</small></div>
+          </div>
+          <div class="status-row line-test-row" id="lineTestStatus" hidden>
+            <span class="status-dot status-dot-test"></span>
+            <div><strong>LINE OA ทดสอบ</strong><small id="lineTestDetail">ใช้บัญชีทดสอบเพื่อป้องกันความสับสนระหว่างช่วง Go-live</small></div>
+          </div>
+          <p class="status-note">นอกเวลาทำการยังส่งคำขอออนไลน์ได้ การดำเนินการของเจ้าหน้าที่เป็นไปตามวันและเวลาทำการ</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="services">
+      <div class="container">
+        <div class="section-heading">
+          <div><span class="eyebrow">ONE STOP SERVICE</span><h2>บริการสำหรับประชาชน</h2></div>
+          <p>ลดการกรอกข้อมูลซ้ำ และไม่เปิดเผยข้อมูลสุขภาพเกินความจำเป็น</p>
+        </div>
+        <div class="service-grid">
+          <a class="service-card featured" id="appointmentLink" href="#">
+            <span class="service-icon">📅</span><h3>นัดหมายของฉัน</h3>
+            <p>ตรวจเฉพาะวันนัดหมายที่เชื่อมจากระบบบริการ <span class="inline-test-badge" data-line-test-badge hidden>LINE OA ทดสอบ</span></p><span class="card-action">เปิดบริการ →</span>
+          </a>
+          <a class="service-card" id="equipmentLink" href="#">
+            <span class="service-icon">🩺</span><h3>ยืมอุปกรณ์การแพทย์</h3>
+            <p>แจ้งความประสงค์ เจ้าหน้าที่ตรวจสอบและติดต่อกลับ</p><span class="card-action">แจ้งความประสงค์ →</span>
+          </a>
+          <a class="service-card" id="contactLink" href="#">
+            <span class="service-icon">💬</span><h3>ติดต่อเจ้าหน้าที่</h3>
+            <p>สอบถามข้อมูลบริการหรือขอความช่วยเหลือ <span class="inline-test-badge" data-line-test-badge hidden>LINE OA ทดสอบ</span></p><span class="card-action">ติดต่อเรา →</span>
+          </a>
+          <a class="service-card" href="#about">
+            <span class="service-icon">🏥</span><h3>ข้อมูลหน่วยบริการ</h3>
+            <p>ภารกิจ โครงสร้างบริการ และช่องทางติดต่อ</p><span class="card-action">ดูข้อมูล →</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-soft" id="news">
+      <div class="container">
+        <div class="section-heading">
+          <div><span class="eyebrow">UPDATES</span><h2>ข่าวและประกาศ</h2></div>
+          <p>แสดงเฉพาะรายการที่เจ้าหน้าที่เผยแพร่ และจำกัดหน้าแรกไม่เกิน 3 รายการ</p>
+        </div>
+        <div class="content-grid" id="newsGrid" aria-live="polite">
+          <article class="content-card"><span class="tag">ข่าวสาร</span><h3>กำลังโหลดข่าวล่าสุด</h3><p>กรุณารอสักครู่</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="knowledge">
+      <div class="container">
+        <div class="section-heading">
+          <div><span class="eyebrow">TRUSTED HEALTH SOURCES</span><h2>ความรู้สุขภาพที่เชื่อถือได้</h2></div>
+          <p>เก็บเพียงหัวข้อ สรุป และลิงก์ต้นทาง ไม่คัดลอกบทความทั้งหมดมาเก็บในระบบ</p>
+        </div>
+        <div class="knowledge-grid">
+          <a class="knowledge-card" href="https://ddc.moph.go.th/" target="_blank" rel="noopener noreferrer"><strong>กรมควบคุมโรค</strong><span>โรคติดต่อ โรคไม่ติดต่อ และสถานการณ์สุขภาพ</span></a>
+          <a class="knowledge-card" href="https://anamai.moph.go.th/" target="_blank" rel="noopener noreferrer"><strong>กรมอนามัย</strong><span>ส่งเสริมสุขภาพ สิ่งแวดล้อม และสุขภาพตามวัย</span></a>
+          <a class="knowledge-card" href="https://www.nhso.go.th/" target="_blank" rel="noopener noreferrer"><strong>สำนักงานหลักประกันสุขภาพแห่งชาติ</strong><span>สิทธิประโยชน์และบริการสุขภาพ</span></a>
+          <a class="knowledge-card" href="https://www.who.int/thailand" target="_blank" rel="noopener noreferrer"><strong>WHO Thailand</strong><span>ข้อมูลสุขภาพจากองค์การอนามัยโลก</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-soft" id="about">
+      <div class="container about-grid">
+        <div>
+          <span class="eyebrow">ABOUT US</span>
+          <h2 data-site-unit>ศูนย์บริการสาธารณสุขบ้านโทกหัวช้าง</h2>
+          <p>เว็บไซต์นี้เป็นหน้าสาธารณะของหน่วยบริการ แยกจากระบบงานภายใน OSM-PHC และระบบเวชระเบียน JHCIS เพื่อจำกัดการเข้าถึงข้อมูลตามวัตถุประสงค์</p>
+          <div class="principles">
+            <span>ข้อมูลทั่วไป → Static-first</span>
+            <span>ข่าว/ประกาศ → Supabase เฉพาะที่จำเป็น</span>
+            <span>บริการประชาชน → LINE Service Hub</span>
+            <span>ข้อมูลนัด → อ่านผ่านระบบกลางที่กำหนด</span>
+          </div>
+        </div>
+        <div class="org-card">
+          <h3>โครงสร้างเนื้อหาเว็บไซต์</h3>
+          <ul>
+            <li>ข้อมูลและภารกิจหน่วยบริการ</li>
+            <li>บริการสำหรับประชาชน</li>
+            <li>ข่าวและประกาศ</li>
+            <li>ความรู้สุขภาพจากแหล่งเชื่อถือ</li>
+            <li>ช่องทางติดต่อและ One Stop Service</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="privacy-strip">
+      <div class="container">
+        <strong>หลักการข้อมูลขั้นต่ำ</strong>
+        <span>เว็บไซต์สาธารณะไม่แสดง CID, JHCIS PID, การวินิจฉัย ยา ผลตรวจ หรือเวชระเบียน</span>
+      </div>
+    </section>
+  </main>
+
+
+  <dialog id="equipmentDialog" class="service-dialog" aria-labelledby="equipmentDialogTitle">
+    <form id="equipmentForm" method="dialog" class="service-dialog-card">
+      <div class="dialog-head">
+        <div><span class="eyebrow">ONE STOP SERVICE</span><h2 id="equipmentDialogTitle">แจ้งความประสงค์ยืมอุปกรณ์การแพทย์</h2></div>
+        <button id="equipmentClose" class="dialog-close" type="button" aria-label="ปิด">×</button>
+      </div>
+      <p>กรอกเฉพาะข้อมูลที่จำเป็น เจ้าหน้าที่จะตรวจสอบและติดต่อกลับ</p>
+      <label>ประเภทอุปกรณ์
+        <select id="equipmentType" required>
+          <option value="">กรุณาเลือก</option>
+          <option value="wheelchair">รถเข็นผู้ป่วย</option>
+          <option value="walker">อุปกรณ์ช่วยเดิน</option>
+          <option value="hospital_bed">เตียงผู้ป่วย</option>
+          <option value="oxygen">อุปกรณ์ออกซิเจน</option>
+          <option value="other">อุปกรณ์อื่น ๆ</option>
+        </select>
+      </label>
+      <label>จำนวน<input id="equipmentQty" type="number" min="1" max="20" value="1" required></label>
+      <label>ผู้ใช้อุปกรณ์ / เหตุผลสั้น ๆ<textarea id="equipmentReason" maxlength="300" required></textarea></label>
+      <label>เบอร์ติดต่อ<input id="equipmentPhone" type="tel" inputmode="tel" maxlength="30" autocomplete="tel" required></label>
+      <div class="dialog-note">การส่งคำขอไม่ใช่การยืนยันว่ามีอุปกรณ์พร้อมยืม เจ้าหน้าที่ต้องตรวจสอบก่อนทุกครั้ง</div>
+      <button id="equipmentSubmit" class="btn btn-primary" type="submit">ส่งคำขอ</button>
+      <p id="equipmentResult" class="dialog-result" role="status" aria-live="polite"></p>
+    </form>
+  </dialog>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div><strong data-site-unit>ศูนย์บริการสาธารณสุขบ้านโทกหัวช้าง</strong><span data-site-municipality>เทศบาลเมืองเขลางค์นคร</span></div>
+      <div><span>THC Health · One Stop Service</span><small>เว็บไซต์สาธารณะของหน่วยบริการ</small></div>
+    </div>
+  </footer>
+
+  <script src="site.config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

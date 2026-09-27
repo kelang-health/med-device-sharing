@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b684f">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://txjuiaiwffsxfcrxpkvd.supabase.co; img-src 'self' https://kelang-health.github.io data:; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'">
+  <link rel="icon" href="https://kelang-health.github.io/med-device-sharing/assets/logo.png?v=4.2.4" type="image/png">
+  <meta name="robots" content="noindex,nofollow">
+  <title>THC Health · จัดการเว็บไซต์</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-body">
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a class="brand" href="./">
+        <img src="https://kelang-health.github.io/med-device-sharing/assets/logo.png?v=4.2.4" alt="ตราเทศบาลเมืองเขลางค์นคร">
+        <div><strong>THC Health</strong><span>จัดการเว็บไซต์หน่วยบริการ</span></div>
+      </a>
+      <a class="admin-public-link" href="./">ดูหน้าเว็บไซต์</a>
+    </div>
+  </header>
+
+  <main class="container admin-shell">
+    <section id="loginPanel" class="admin-card admin-login">
+      <span class="eyebrow">ADMIN</span>
+      <h1>เข้าสู่ระบบจัดการเว็บไซต์</h1>
+      <p>ใช้บัญชีเจ้าหน้าที่ชุดเดียวกับระบบ Medical Equipment Sharing / LINE Service Hub</p>
+      <form id="loginForm">
+        <label>ชื่อผู้ใช้หรืออีเมล<input id="username" autocomplete="username" required></label>
+        <label>รหัสผ่าน<input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="btn btn-primary admin-submit" type="submit">เข้าสู่ระบบ</button>
+        <p id="loginError" class="admin-error" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="adminPanel" class="admin-hidden">
+      <div class="admin-toolbar">
+        <div><span class="eyebrow">THC HEALTH</span><h1>หลังบ้านเว็บไซต์หน่วยบริการ</h1><p id="who"></p></div>
+        <button id="logout" class="btn btn-secondary" type="button">ออกจากระบบ</button>
+      </div>
+
+      <div id="readOnlyNotice" class="admin-notice admin-hidden">บัญชี STAFF ดูข้อมูลได้ แต่การแก้ไขเว็บไซต์สงวนไว้สำหรับ ADMIN</div>
+
+      <section class="admin-card">
+        <div class="admin-section-head">
+          <div><h2>ความพร้อม Production</h2><p>ตรวจเงื่อนไขก่อนเปิดใช้งานจริงแบบอัตโนมัติ</p></div>
+          <span id="productionBadge" class="admin-badge warning">กำลังตรวจ</span>
+        </div>
+        <div class="readiness-grid" id="readinessGrid">
+          <div data-ready="identity">ชื่อหน่วยบริการและหน่วยงาน</div>
+          <div data-ready="oneStopUrl">One Stop Service URL</div>
+          <div data-ready="lineContact">LINE ติดต่อเจ้าหน้าที่</div>
+          <div data-ready="officeHoursConfirmed">ยืนยันเวลาทำการ</div>
+          <div data-ready="adminE2E">Admin/Staff E2E</div>
+          <div data-ready="repoCreated">สร้าง repo thc-health</div>
+        </div>
+        <p id="productionSummary" class="admin-readiness-summary"></p>
+      </section>
+
+      <section class="admin-card">
+        <div class="admin-section-head"><div><h2>ข้อมูลหน่วยบริการ</h2><p>ข้อมูลสาธารณะที่หน้าเว็บนำไปแสดง</p></div><span class="admin-badge">Public</span></div>
+        <form id="siteForm" class="admin-form-grid">
+          <label>ชื่อหน่วยบริการ<input id="siteUnit" required maxlength="160"></label>
+          <label>หน่วยงาน<input id="siteMunicipality" required maxlength="160"></label>
+          <label class="wide">ข้อความหลัก<input id="siteTagline" maxlength="240"></label>
+          <label class="wide">One Stop Service URL<input id="siteOneStop" type="url"></label>
+          <label class="wide">LINE ติดต่อเจ้าหน้าที่<input id="siteLine" type="url"></label>
+          <label>โทรศัพท์<input id="sitePhone" maxlength="50"></label>
+          <label>ลิงก์แผนที่<input id="siteMap" type="url"></label>
+          <label class="wide">ที่อยู่<textarea id="siteAddress" maxlength="300"></textarea></label>
+          <div class="wide admin-actions"><button class="btn btn-primary" type="submit">บันทึกข้อมูลหน่วยบริการ</button><span id="siteStatus"></span></div>
+        </form>
+      </section>
+
+      <section class="admin-card">
+        <div class="admin-section-head"><div><h2>เวลาทำการ</h2><p>สถานะนี้แยกจากสถานะระบบออนไลน์</p></div><span class="admin-badge warning">ต้องยืนยัน</span></div>
+        <form id="hoursForm">
+          <div class="weekday-grid" id="weekdayGrid">
+            <label><input type="checkbox" value="1"> จันทร์</label>
+            <label><input type="checkbox" value="2"> อังคาร</label>
+            <label><input type="checkbox" value="3"> พุธ</label>
+            <label><input type="checkbox" value="4"> พฤหัสบดี</label>
+            <label><input type="checkbox" value="5"> ศุกร์</label>
+            <label><input type="checkbox" value="6"> เสาร์</label>
+            <label><input type="checkbox" value="7"> อาทิตย์</label>
+          </div>
+          <div class="admin-form-grid">
+            <label>เวลาเริ่ม<input id="hoursStart" type="time" required></label>
+            <label>เวลาสิ้นสุด<input id="hoursEnd" type="time" required></label>
+            <label class="wide">วันหยุดเพิ่มเติม <small>YYYY-MM-DD หนึ่งวันต่อบรรทัด</small><textarea id="hoursHolidays"></textarea></label>
+            <label class="wide">ปิดบริการเฉพาะกิจ <small>YYYY-MM-DD หนึ่งวันต่อบรรทัด</small><textarea id="hoursClosures"></textarea></label>
+            <label class="wide confirm-row"><input id="hoursConfirmed" type="checkbox"> ยืนยันว่าเวลานี้เป็นข้อมูลที่ใช้แสดงต่อประชาชน</label>
+            <div class="wide admin-actions"><button class="btn btn-primary" type="submit">บันทึกเวลาทำการ</button><span id="hoursStatus"></span></div>
+          </div>
+        </form>
+      </section>
+
+      <section class="admin-card">
+        <div class="admin-section-head"><div><h2>ข่าวและประกาศ</h2><p>หน้าแรกแสดงสูงสุด 3 รายการที่ Active</p></div><span class="admin-badge">Public Content</span></div>
+        <form id="contentForm" class="admin-form-grid">
+          <input id="contentId" type="hidden">
+          <label>ประเภท<select id="contentType"><option value="WebsiteNews">ข่าวสาร</option><option value="WebsiteAnnouncement">ประกาศ</option></select></label>
+          <label>ลำดับ<input id="contentSort" type="number" min="0" max="9999" value="100"></label>
+          <label class="wide">หัวข้อ<input id="contentTitle" maxlength="200" required></label>
+          <label class="wide">สรุป<textarea id="contentSummary" maxlength="1200"></textarea></label>
+          <label class="wide confirm-row"><input id="contentActive" type="checkbox" checked> เผยแพร่ (Active)</label>
+          <div class="wide admin-actions">
+            <button class="btn btn-primary" type="submit">บันทึกรายการ</button>
+            <button id="contentCancel" class="btn btn-secondary" type="button">ล้างฟอร์ม</button>
+            <span id="contentStatus"></span>
+          </div>
+        </form>
+        <div id="contentList" class="admin-content-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="site.config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
