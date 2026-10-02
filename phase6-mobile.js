@@ -1,4 +1,4 @@
-/* Phase 6.0.1 — Smartphone QR/Barcode scan + public equipment landing */
+/* Phase 6.1.1 — Smartphone QR/Barcode scan + canonical equipment code */
 (function(){
   const API='https://txjuiaiwffsxfcrxpkvd.supabase.co/functions/v1/med-device-api-v60';
   const TOKEN_KEY='medDevice.adminToken';
@@ -12,8 +12,10 @@
       const q=u.searchParams.get('equipment')||u.searchParams.get('code');
       if(q)return normalizeCode(q);
     }catch{}
-    const m=raw.toUpperCase().replace(/\s+/g,'').match(/EQ-?0*(\d+)/);
-    return m?'EQ-'+String(Number(m[1])):'';
+    const m=raw.toUpperCase().replace(/\s+/g,'').match(/^EQ-?(\d+)$/);
+    if(!m)return '';
+    const digits=m[1].replace(/^0+(?=\d)/,'');
+    return 'EQ-'+digits.padStart(2,'0');
   }
   function stateLabel(s){return ({BASELINE_REQUIRED:'ต้องบันทึก PM เริ่มต้น',OVERDUE:'เกินกำหนด PM',DUE_SOON:'ใกล้ครบกำหนด',DUE_USAGE:'ถึงรอบตามจำนวนใช้งาน',OK:'ปกติ',NO_PLAN:'ยังไม่มีแผน PM'})[s]||s||'-';}
   function statusLabel(s){return ({Available:'พร้อมยืม',Borrowed:'กำลังยืม',Cleaning:'รอทำความสะอาด',Inspection:'รอตรวจสอบ',Maintenance:'กำลังบำรุง/ซ่อม',Damaged:'ชำรุด',Lost:'สูญหาย',Retired:'ปลดระวาง'})[s]||s||'-';}
