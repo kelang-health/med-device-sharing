@@ -325,15 +325,22 @@ async function checkAuthSession() {
 
 async function loadSystemData() {
     try {
-        const [resPub, resEq, resSummary] = await Promise.all([
-            run('getData', { sheetName: 'Publics' }),
-            run('getData', { sheetName: 'Equipments' }),
-            run('getPublicDashboard', {})
-        ]);
-
-        state.publics = resPub.success ? (resPub.data || []) : [];
-        state.equipments = resEq.success ? (resEq.data || []) : [];
-        state.publicSummary = resSummary && resSummary.success ? (resSummary.data || null) : null;
+        const bootstrap = await run('getBootstrapData', {});
+        if (bootstrap && bootstrap.success) {
+            state.publics = bootstrap.publics || [];
+            state.equipments = bootstrap.equipments || [];
+            state.publicSummary = bootstrap.publicSummary || null;
+        } else {
+            // Fallback only for rollback/older backend; normally this path is not used.
+            const [resPub, resEq, resSummary] = await Promise.all([
+                run('getData', { sheetName: 'Publics' }),
+                run('getData', { sheetName: 'Equipments' }),
+                run('getPublicDashboard', {})
+            ]);
+            state.publics = resPub.success ? (resPub.data || []) : [];
+            state.equipments = resEq.success ? (resEq.data || []) : [];
+            state.publicSummary = resSummary && resSummary.success ? (resSummary.data || null) : null;
+        }
         state.data = [];
 
         if (state.isAdmin) {
