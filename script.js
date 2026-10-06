@@ -204,7 +204,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     initThemeMode();
     await checkAuthSession();
     await loadSystemData();
-    if (state.role === 'ADMIN') loadLineRichMenuStatus();
     const borrowDate = document.getElementById('borrow-date');
     if (borrowDate) borrowDate.valueAsDate = new Date();
 });
@@ -1329,13 +1328,19 @@ function switchTab(tabId) {
         loadProcurementPlan();
     }
     if (tabId === 'settings') {
-        loadAdminUsersSection();
-        checkSchemaStatus();
-        loadAuditLogSection();
-        loadMaintenanceStatus();
-        loadSupabaseHealthStatus(false);
-        loadMaintenanceLog();
-        loadLineConfigStatus();
+        const now=Date.now();
+        const fresh=window.__medSettingsLoadedAt && (now-window.__medSettingsLoadedAt)<30*60*1000;
+        if(!fresh){
+            window.__medSettingsLoadedAt=now;
+            loadAdminUsersSection();
+            checkSchemaStatus();
+            loadAuditLogSection();
+            loadMaintenanceStatus();
+            loadSupabaseHealthStatus(false);
+            loadMaintenanceLog();
+            loadLineConfigStatus();
+            if (state.role === 'ADMIN') loadLineRichMenuStatus();
+        }
     }
 }
 
